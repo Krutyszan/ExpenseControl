@@ -1,14 +1,84 @@
 ﻿@inherits LayoutComponentBase
 
-<MudThemeProvider />
+<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
+
 <MudLayout>
-    <MudAppBar>
-        Moje Wydatki
+    <MudAppBar Elevation="1" Color="Color.Primary">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <MudText Typo="Typo.h6" Class="ml-3">ExpenseControl</MudText>
+        <MudSpacer />
+
+        <MudToggleIconButton @bind-Toggled="@_isDarkMode"
+                             Icon="@Icons.Material.Filled.DarkMode" Color="Color.Inherit"
+                             ToggledIcon="@Icons.Material.Filled.LightMode" ToggledColor="Color.Warning"
+                             Title="Zmień motyw" />
     </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen"
+               Variant="@DrawerVariant.Mini"
+               OpenMiniOnHover="true"
+               ClipMode="DrawerClipMode.Always"
+               Elevation="2">
+        <MudNavMenu>
+            <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.ReceiptLong">
+                TRANSAKCJE
+            </MudNavLink>
+
+            <MudNavLink Href="sklepy" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Store">
+                SKLEPY
+            </MudNavLink>
+
+            <MudNavLink Href="kategorie" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Category">
+                KATEGORIE
+            </MudNavLink>
+
+            <MudNavLink Href="tagi" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Label">
+                TAGI
+            </MudNavLink>
+
+            <MudDivider Class="my-2" />
+
+            <MudNavLink Href="about" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Info">
+                O APLIKACJI
+            </MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+
     <MudMainContent>
-        @Body
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4 pt-4">
+            @Body
+        </MudContainer>
     </MudMainContent>
 </MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+    bool _isDarkMode = false; // Domyślnie jasny, zmień na true jeśli wolisz ciemny start
+
+    // Konfiguracja kolorów - robimy klimat "Fintech"
+    private MudTheme _theme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#1E88E5",      // Profesjonalny niebieski (lub daj zielony "#2E7D32")
+            Secondary = "#FF4081",    // Różowy akcent (dobry do FAB)
+            AppbarBackground = "#1E88E5",
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#90CAF9",
+            Secondary = "#F48FB1",
+            AppbarBackground = "#1e1e2d", // Ciemnogranatowy pasek
+            Background = "#121212",       // Prawdziwa czerń
+            Surface = "#1e1e2d",          // Karty trochę jaśniejsze
+        }
+    };
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

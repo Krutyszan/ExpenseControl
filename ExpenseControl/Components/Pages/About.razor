@@ -1,0 +1,49 @@
+@page "/about"
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+
+    <MudCard Elevation="3" Class="pa-4">
+
+        <MudCardHeader>
+            <CardHeaderAvatar>
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled">
+                    <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" />
+                </MudAvatar>
+            </CardHeaderAvatar>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5">Kontroler Wydatków</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Wersja 0.1 (MVP)</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudText Typo="Typo.body1" Class="mb-4">
+                Aplikacja do kontrolowania budżetu domowego z wykorzystaniem AI. Jest w fazie heavy developmentu
+            </MudText>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Technologie:</MudText>
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Code">.NET 10</MudChip>
+                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Custom.Brands.Microsoft">Blazor Server</MudChip>
+                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Storage">EF Core & SQLite</MudChip>
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Psychology">Google Gemini AI</MudChip>
+                <MudChip T="string" Color="Color.Dark" Size="Size.Small" Icon="@Icons.Custom.Brands.Linux">Linux LXC</MudChip>
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Layers">Proxmox VE</MudChip>
+            </MudStack>
+
+        </MudCardContent>
+
+        <MudCardActions>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Custom.Brands.GitHub" Href="https://github.com/Krutyszan" Target="_blank">GitHub</MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Custom.Brands.LinkedIn" Href="https://www.linkedin.com/in/tomasz-krutysza-9bb145122/" Target="_blank">LinkedIn</MudButton>
+        </MudCardActions>
+
+    </MudCard>
+    <MudText Typo="Typo.body1" Align="Align.Center" Style="display:block; opacity: 0.6;">
+        V. Dzięki Tobie nauczyłem się walczyć o siebie.
+
+
+    </MudText>
+</MudContainer>

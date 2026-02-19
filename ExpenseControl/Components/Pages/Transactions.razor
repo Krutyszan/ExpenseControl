@@ -1,85 +1,13 @@
-﻿@page "/"
+﻿
 @page "/transactions"
 @using ExpenseControl.Models
 @using ExpenseControl.Services
 @inject TransactionsService Service
 @inject ReceiptService ReceiptService
 @inject ISnackbar Snackbar
-
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
-    <MudText Typo="Typo.h3" GutterBottom="true">Moje Wydatki</MudText>
-
-    <MudPaper Class="pa-4 mb-4" Elevation="3">
-        <MudText Typo="Typo.h5" Class="mb-4">Dodaj nową transakcję</MudText>
-
-        <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true" Style="background-color: #f8f9fa;">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                <div>
-                    <MudText Typo="Typo.subtitle2"><b>Opcja Szybka:</b> Wrzuć zdjęcie paragonu</MudText>
-                    <MudText Typo="Typo.caption">Gemini Flash odczyta sklep, datę i kwotę.</MudText>
-                </div>
-
-                <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles">
-                    <ActivatorContent>
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Secondary"
-                                   StartIcon="@Icons.Material.Filled.AutoAwesome">
-                            Skanuj Paragon (AI)
-                        </MudButton>
-                    </ActivatorContent>
-                </MudFileUpload>
-            </MudStack>
-
-            @if (isScanning)
-            {
-                <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="mt-4" />
-                <MudText Typo="Typo.caption" Align="Align.Center" Class="d-block mt-1">
-                    Analizuję obraz... To potrwa chwilę...
-                </MudText>
-            }
-        </MudPaper>
-
-        <MudForm @ref="form">
-            <MudGrid>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="newTransaction.StoreName"
-                                  Label="Sklep / Miejsce"
-                                  Variant="Variant.Outlined"
-                                  Required="true"
-                                  RequiredError="Nazwa sklepu jest wymagana!" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudNumericField @bind-Value="newTransaction.TotalAmount"
-                                     Label="Kwota"
-                                     Format="N2"
-                                     Variant="Variant.Outlined"
-                                     Adornment="Adornment.Start"
-                                     AdornmentText="PLN"
-                                     Min="0.01M"
-                                     Required="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="newTransaction.Category"
-                                  Label="Kategoria"
-                                  Variant="Variant.Outlined" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudDatePicker @bind-Date="date"
-                                   Label="Data transakcji"
-                                   Variant="Variant.Outlined" />
-                </MudItem>
-                <MudItem xs="12" Class="d-flex justify-end">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               OnClick="AddTransaction"
-                               StartIcon="@Icons.Material.Filled.Save"
-                               Size="Size.Large">
-                        Zapisz Wydatek
-                    </MudButton>
-                </MudItem>
-            </MudGrid>
-        </MudForm>
-    </MudPaper>
+@page "/"
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4 pb-16">
+    <MudText Typo="Typo.h4" GutterBottom="true">Moje Wydatki</MudText>
 
     <MudTable Items="@transactions" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@loading" LoadingProgressColor="Color.Info" Elevation="3">
         <HeaderContent>
@@ -87,14 +15,28 @@
             <MudTh>Sklep</MudTh>
             <MudTh>Kategoria</MudTh>
             <MudTh Style="text-align:right">Kwota</MudTh>
-            <MudTh>Akcje</MudTh>
+            <MudTh>Prod.</MudTh> <MudTh>Akcje</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Data">@context.TransactionDate.ToShortDateString()</MudTd>
-            <MudTd DataLabel="Sklep">@context.StoreName</MudTd>
-            <MudTd DataLabel="Kategoria">@context.Category</MudTd>
+            <MudTd DataLabel="Sklep">
+                <MudText Typo="Typo.body2" Style="font-weight:bold">@(context.Store?.Name ?? "Nieznany")</MudText>
+            </MudTd>
+            <MudTd DataLabel="Kategoria">
+                @(context.Store?.Category?.Name ?? "Brak")
+            </MudTd>
             <MudTd DataLabel="Kwota" Style="text-align:right; font-weight:bold">
                 @context.TotalAmount.ToString("C2")
+            </MudTd>
+            <MudTd DataLabel="Prod.">
+                @if (context.Items != null && context.Items.Any())
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.Items.Count</MudChip>
+                }
+                else
+                {
+                    <span style="color:#ccc">-</span>
+                }
             </MudTd>
             <MudTd>
                 <MudIconButton Icon="@Icons.Material.Filled.Delete"
@@ -104,18 +46,67 @@
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText Class="pa-4">Brak wydatków. Dodaj coś!</MudText>
+            <MudText Class="pa-4">Pusto. Kliknij + albo Aparat!</MudText>
         </NoRecordsContent>
     </MudTable>
+
 </MudContainer>
+
+<div style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 15px; z-index: 100;">
+
+    <MudFab Color="Color.Primary"
+            StartIcon="@Icons.Material.Filled.Add"
+            OnClick="OpenManualDialog"
+            Label="Ręcznie" />
+
+    <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles">
+        <ActivatorContent>
+            <MudFab Color="Color.Secondary"
+                    StartIcon="@Icons.Material.Filled.PhotoCamera"
+                    Label="Skanuj" />
+        </ActivatorContent>
+    </MudFileUpload>
+</div>
+
+<MudOverlay Visible="isScanning" DarkBackground="true" Absolute="false" Style="z-index: 9999;">
+    <MudStack AlignItems="AlignItems.Center">
+        <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
+        <MudText Typo="Typo.h5" Color="Color.Inherit">Gemini analizuje paragon...</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Inherit">Nie zamykaj tej strony.</MudText>
+    </MudStack>
+</MudOverlay>
+
+<MudDialog @bind-Visible="isManualDialogOpen" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-3" /> Dodaj wydatek ręcznie
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="manualForm">
+            <MudTextField @bind-Value="manualStoreName" Label="Nazwa Sklepu" Required="true" AutoFocus="true" />
+            <MudNumericField @bind-Value="manualAmount" Label="Kwota (PLN)" Format="N2" Required="true" Adornment="Adornment.End" AdornmentText="zł" />
+            <MudDatePicker @bind-Date="manualDate" Label="Data" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseManualDialog">Anuluj</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveManualTransaction">Zapisz</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
     private List<Transaction> transactions = new();
-    private Transaction newTransaction = new();
-    private DateTime? date = DateTime.Today;
     private bool loading = true;
     private bool isScanning = false;
-    MudForm form;
+
+    // Zmienne do trybu ręcznego
+    private bool isManualDialogOpen = false;
+    private MudForm manualForm;
+    private string manualStoreName;
+    private decimal manualAmount;
+    private DateTime? manualDate = DateTime.Today;
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -129,72 +120,80 @@
         loading = false;
     }
 
-    private async Task AddTransaction()
+    // --- LOGIKA AI (SKANOWANIE) ---
+    private async Task UploadFiles(IBrowserFile file)
     {
-        // 1. Walidacja formularza przed wysłaniem
-        await form.Validate();
-        if (!form.IsValid) return;
+        if (file == null) return;
 
-        // 2. Przepisanie daty
-        newTransaction.TransactionDate = date ?? DateTime.UtcNow;
+        isScanning = true;
+        StateHasChanged(); // Pokaż overlay
 
-        // 3. Zapis
-        await Service.AddTransactionAsync(newTransaction);
+        try
+        {
+            // Limit 10MB na zdjęcie
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
 
-        Snackbar.Add("Dodano wydatek!", Severity.Success);
+            // 1. AI analizuje
+            var aiTransaction = await ReceiptService.AnalyzeReceiptAsync(stream, file.ContentType);
 
-        // 4. Reset
-        newTransaction = new Transaction();
-        date = DateTime.Today;
-        // Resetuje stan walidacji formularza (żeby nie świecił na czerwono po resecie)
-        form.ResetValidation();
+            // 2. Automatyczny zapis do bazy (Fire & Forget)
+            await Service.AddTransactionAsync(aiTransaction);
 
+            Snackbar.Add($"Zapisano paragon ze sklepu {aiTransaction.Store?.Name} na kwotę {aiTransaction.TotalAmount} PLN", Severity.Success);
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Błąd AI: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isScanning = false;
+            StateHasChanged(); // Ukryj overlay
+        }
+    }
+
+    // --- LOGIKA RĘCZNA (DIALOG) ---
+    private void OpenManualDialog()
+    {
+        // Reset formularza
+        manualStoreName = string.Empty;
+        manualAmount = 0;
+        manualDate = DateTime.Today;
+        isManualDialogOpen = true;
+    }
+
+    private void CloseManualDialog() => isManualDialogOpen = false;
+
+    private async Task SaveManualTransaction()
+    {
+        await manualForm.Validate();
+        if (!manualForm.IsValid) return;
+
+        var newTrans = new Transaction
+        {
+            TransactionDate = manualDate ?? DateTime.Now,
+            TotalAmount = manualAmount,
+            // Tworzymy obiekt Store, TransactionService sam sprawdzi czy sklep istnieje
+            Store = new Store
+            {
+                Name = manualStoreName,
+                CategoryId = 0 // Service ustawi domyślną "Inne" lub 1
+            }
+        };
+
+        await Service.AddTransactionAsync(newTrans);
+        Snackbar.Add("Dodano ręcznie!", Severity.Success);
+
+        isManualDialogOpen = false;
         await LoadData();
     }
 
     private async Task DeleteTransaction(int id)
     {
         await Service.DeleteTransactionAsync(id);
-        Snackbar.Add("Usunięto!", Severity.Warning);
+        Snackbar.Add("Usunięto.", Severity.Info);
         await LoadData();
-    }
-
-    private async Task UploadFiles(IBrowserFile file)
-    {
-        if (file == null) return;
-
-        isScanning = true;
-        // Wymuszamy odświeżenie, żeby pokazał się pasek postępu
-        StateHasChanged();
-
-        try
-        {
-            // Limit 5MB
-            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-
-            var recognizedTransaction = await ReceiptService.AnalyzeReceiptAsync(stream, file.ContentType);
-
-            // Mapowanie wyników z AI do formularza
-            newTransaction.StoreName = recognizedTransaction.StoreName;
-            newTransaction.TotalAmount = recognizedTransaction.TotalAmount;
-            newTransaction.Category = recognizedTransaction.Category;
-            newTransaction.TransactionDate = recognizedTransaction.TransactionDate;
-
-            // Aktualizacja datepickera
-            date = recognizedTransaction.TransactionDate;
-
-            Snackbar.Add("Dane z paragonu odczytane!", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Błąd skanowania: {ex.Message}", Severity.Error);
-            Console.WriteLine(ex.ToString());
-        }
-        finally
-        {
-            isScanning = false;
-            // Bardzo ważne: mówimy Blazorowi, że dane w formularzu się zmieniły
-            StateHasChanged();
-        }
     }
 }
