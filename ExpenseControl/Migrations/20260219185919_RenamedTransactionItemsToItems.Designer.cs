@@ -3,6 +3,7 @@ using System;
 using ExpenseControl.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ExpenseControl.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260219185919_RenamedTransactionItemsToItems")]
+    partial class RenamedTransactionItemsToItems
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
@@ -88,9 +91,6 @@ namespace ExpenseControl.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ApplicationUserId")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -99,13 +99,7 @@ namespace ExpenseControl.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("ApplicationUserId");
 
                     b.ToTable("Categories");
 
@@ -114,29 +108,25 @@ namespace ExpenseControl.Migrations
                         {
                             Id = 1,
                             Description = "",
-                            Name = "Jedzenie",
-                            UserId = ""
+                            Name = "Jedzenie"
                         },
                         new
                         {
                             Id = 2,
                             Description = "",
-                            Name = "Rozrywka",
-                            UserId = ""
+                            Name = "Rozrywka"
                         },
                         new
                         {
                             Id = 3,
                             Description = "",
-                            Name = "Rachunki",
-                            UserId = ""
+                            Name = "Rachunki"
                         },
                         new
                         {
                             Id = 4,
                             Description = "",
-                            Name = "Inne",
-                            UserId = ""
+                            Name = "Inne"
                         });
                 });
 
@@ -145,9 +135,6 @@ namespace ExpenseControl.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("ApplicationUserId")
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("INTEGER");
@@ -160,13 +147,7 @@ namespace ExpenseControl.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("ApplicationUserId");
 
                     b.HasIndex("CategoryId");
 
@@ -181,56 +162,22 @@ namespace ExpenseControl.Migrations
                             Id = 1,
                             CategoryId = 1,
                             Description = "",
-                            Name = "Biedronka",
-                            UserId = ""
+                            Name = "Biedronka"
                         },
                         new
                         {
                             Id = 2,
                             CategoryId = 1,
                             Description = "",
-                            Name = "Auchan",
-                            UserId = ""
+                            Name = "Auchan"
                         },
                         new
                         {
                             Id = 3,
                             CategoryId = 1,
                             Description = "",
-                            Name = "Lidl",
-                            UserId = ""
+                            Name = "Lidl"
                         });
-                });
-
-            modelBuilder.Entity("ExpenseControl.Models.Tag", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ApplicationUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ColorHex")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicationUserId");
-
-                    b.ToTable("Tags");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Transaction", b =>
@@ -238,9 +185,6 @@ namespace ExpenseControl.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("ApplicationUserId")
-                        .HasColumnType("TEXT");
 
                     b.Property<int?>("CategoryId")
                         .HasColumnType("INTEGER");
@@ -257,13 +201,7 @@ namespace ExpenseControl.Migrations
                     b.Property<DateTime>("TransactionDate")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("ApplicationUserId");
 
                     b.HasIndex("CategoryId");
 
@@ -278,11 +216,11 @@ namespace ExpenseControl.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ApplicationUserId")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("PricePerUnit")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Quantity")
@@ -291,16 +229,7 @@ namespace ExpenseControl.Migrations
                     b.Property<int>("TransactionId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("ApplicationUserId");
 
                     b.HasIndex("TransactionId");
 
@@ -456,62 +385,19 @@ namespace ExpenseControl.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("TagTransaction", b =>
-                {
-                    b.Property<int>("TagsId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TransactionsId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("TagsId", "TransactionsId");
-
-                    b.HasIndex("TransactionsId");
-
-                    b.ToTable("TagTransaction");
-                });
-
-            modelBuilder.Entity("ExpenseControl.Models.Category", b =>
-                {
-                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
-                        .WithMany()
-                        .HasForeignKey("ApplicationUserId");
-
-                    b.Navigation("ApplicationUser");
-                });
-
             modelBuilder.Entity("ExpenseControl.Models.Store", b =>
                 {
-                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
-                        .WithMany("Stores")
-                        .HasForeignKey("ApplicationUserId");
-
                     b.HasOne("ExpenseControl.Models.Category", "Category")
                         .WithMany()
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("ApplicationUser");
-
                     b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("ExpenseControl.Models.Tag", b =>
-                {
-                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
-                        .WithMany("Tags")
-                        .HasForeignKey("ApplicationUserId");
-
-                    b.Navigation("ApplicationUser");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Transaction", b =>
                 {
-                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
-                        .WithMany("Transactions")
-                        .HasForeignKey("ApplicationUserId");
-
                     b.HasOne("ExpenseControl.Models.Category", null)
                         .WithMany("Transactions")
                         .HasForeignKey("CategoryId");
@@ -522,24 +408,16 @@ namespace ExpenseControl.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("ApplicationUser");
-
                     b.Navigation("Store");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.TransactionItem", b =>
                 {
-                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
-                        .WithMany("Items")
-                        .HasForeignKey("ApplicationUserId");
-
                     b.HasOne("ExpenseControl.Models.Transaction", "Transaction")
                         .WithMany("Items")
                         .HasForeignKey("TransactionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ApplicationUser");
 
                     b.Navigation("Transaction");
                 });
@@ -644,32 +522,6 @@ namespace ExpenseControl.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("TagTransaction", b =>
-                {
-                    b.HasOne("ExpenseControl.Models.Tag", null)
-                        .WithMany()
-                        .HasForeignKey("TagsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ExpenseControl.Models.Transaction", null)
-                        .WithMany()
-                        .HasForeignKey("TransactionsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ExpenseControl.Data.ApplicationUser", b =>
-                {
-                    b.Navigation("Items");
-
-                    b.Navigation("Stores");
-
-                    b.Navigation("Tags");
-
-                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Category", b =>

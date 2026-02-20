@@ -2,6 +2,7 @@ using ExpenseControl.Components;
 using ExpenseControl.Components.Account;
 using ExpenseControl.Data;
 using ExpenseControl.Services;
+using ExpenseControl.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -53,8 +54,10 @@ namespace ExpenseControl
 
 
             //Serwisy
-            builder.Services.AddScoped<TransactionsService>();
-            builder.Services.AddHttpClient<ReceiptService>();
+            builder.Services.AddScoped<ITransactionService, TransactionService>();
+            builder.Services.AddScoped<ICategoryService, CategoryService>();
+            builder.Services.AddScoped<IStoreService, StoreService>();
+            builder.Services.AddHttpClient<IAIService, GeminiService>();
             builder.Services.AddScoped<ReceiptService>();
 
             var app = builder.Build();

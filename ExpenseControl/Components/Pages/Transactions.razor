@@ -1,53 +1,72 @@
-﻿
-@page "/transactions"
+﻿@page "/transactions"
+@page "/"
 @using ExpenseControl.Models
 @using ExpenseControl.Services
-@inject TransactionsService Service
+@using ExpenseControl.Services.Interfaces
+@inject ITransactionService Service
 @inject ReceiptService ReceiptService
 @inject ISnackbar Snackbar
-@page "/"
+
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4 pb-16">
     <MudText Typo="Typo.h4" GutterBottom="true">Moje Wydatki</MudText>
 
-    <MudTable Items="@transactions" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@loading" LoadingProgressColor="Color.Info" Elevation="3">
+    <MudTable Items="@_transactions" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="3">
         <HeaderContent>
+            <MudTh></MudTh>
             <MudTh>Data</MudTh>
             <MudTh>Sklep</MudTh>
             <MudTh>Kategoria</MudTh>
             <MudTh Style="text-align:right">Kwota</MudTh>
-            <MudTh>Prod.</MudTh> <MudTh>Akcje</MudTh>
+            <MudTh>Akcje</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Data">@context.TransactionDate.ToShortDateString()</MudTd>
-            <MudTd DataLabel="Sklep">
-                <MudText Typo="Typo.body2" Style="font-weight:bold">@(context.Store?.Name ?? "Nieznany")</MudText>
-            </MudTd>
-            <MudTd DataLabel="Kategoria">
-                @(context.Store?.Category?.Name ?? "Brak")
-            </MudTd>
-            <MudTd DataLabel="Kwota" Style="text-align:right; font-weight:bold">
-                @context.TotalAmount.ToString("C2")
-            </MudTd>
-            <MudTd DataLabel="Prod.">
+            <MudTd>
                 @if (context.Items != null && context.Items.Any())
                 {
-                    <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.Items.Count</MudChip>
-                }
-                else
-                {
-                    <span style="color:#ccc">-</span>
+                    <MudIconButton Icon="@(_expandedRows.Contains(context.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                   OnClick="@(() => ToggleDetails(context.Id))"
+                                   Size="Size.Small" />
                 }
             </MudTd>
+
+            <MudTd DataLabel="Data">@context.TransactionDate.ToShortDateString()</MudTd>
+            <MudTd DataLabel="Sklep"><b>@(context.Store?.Name ?? "Nieznany")</b></MudTd>
+            <MudTd DataLabel="Kategoria">@(context.Store?.Category?.Name ?? "Brak")</MudTd>
+            <MudTd DataLabel="Kwota" Style="text-align:right"><b>@context.TotalAmount.ToString("C2")</b></MudTd>
             <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                               Color="Color.Error"
-                               Size="Size.Small"
-                               OnClick="@(() => DeleteTransaction(context.Id))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" />
             </MudTd>
         </RowTemplate>
-        <NoRecordsContent>
-            <MudText Class="pa-4">Pusto. Kliknij + albo Aparat!</MudText>
-        </NoRecordsContent>
+
+        <ChildRowContent>
+            @if (_expandedRows.Contains(context.Id))
+            {
+                <MudTr>
+                    <td colspan="6" class="pa-0">
+                        <MudCard Elevation="0" Class="ma-4" Style="background-color: #f8f9fa; border-left: 4px solid #1e88e5;">
+                            <MudCardContent Class="pa-2">
+                                <MudTable Items="@context.Items" Context="itemContext" Hover="true" Elevation="0" Dense="true">
+                                    <HeaderContent>
+                                        <MudTh>Produkt</MudTh>
+                                        <MudTh>Cena jedn.</MudTh>
+                                        <MudTh>Ilość</MudTh>
+                                        <MudTh Style="text-align:right">Razem</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Produkt">@itemContext.Name</MudTd>
+                                        <MudTd DataLabel="Cena jedn.">@itemContext.UnitPrice.ToString("C2")</MudTd>
+                                        <MudTd DataLabel="Ilość">@itemContext.Quantity</MudTd>
+                                        <MudTd DataLabel="Razem" Style="text-align:right; font-weight:bold">
+                                            @((itemContext.Quantity * itemContext.UnitPrice).ToString("C2"))
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudCardContent>
+                        </MudCard>
+                    </td>
+                </MudTr>
+            }
+        </ChildRowContent>
     </MudTable>
 
 </MudContainer>
@@ -68,25 +87,25 @@
     </MudFileUpload>
 </div>
 
-<MudOverlay Visible="isScanning" DarkBackground="true" Absolute="false" Style="z-index: 9999;">
+<MudOverlay Visible="_isScanning" DarkBackground="true" Absolute="false" Style="z-index: 9999;">
     <MudStack AlignItems="AlignItems.Center">
         <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
-        <MudText Typo="Typo.h5" Color="Color.Inherit">Gemini analizuje paragon...</MudText>
-        <MudText Typo="Typo.body1" Color="Color.Inherit">Nie zamykaj tej strony.</MudText>
+        <MudText Typo="Typo.h5" Color="Color.Inherit">Sztuczna Inteligencja analizuje paragon...</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Inherit">Proszę czekać, to zajmie chwilę.</MudText>
     </MudStack>
 </MudOverlay>
 
-<MudDialog @bind-Visible="isManualDialogOpen" Options="dialogOptions">
+<MudDialog @bind-Visible="_isManualDialogOpen" Options="_dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-3" /> Dodaj wydatek ręcznie
         </MudText>
     </TitleContent>
     <DialogContent>
-        <MudForm @ref="manualForm">
-            <MudTextField @bind-Value="manualStoreName" Label="Nazwa Sklepu" Required="true" AutoFocus="true" />
-            <MudNumericField @bind-Value="manualAmount" Label="Kwota (PLN)" Format="N2" Required="true" Adornment="Adornment.End" AdornmentText="zł" />
-            <MudDatePicker @bind-Date="manualDate" Label="Data" />
+        <MudForm @ref="_manualForm">
+            <MudTextField @bind-Value="_manualStoreName" Label="Nazwa Sklepu" Required="true" AutoFocus="true" />
+            <MudNumericField @bind-Value="_manualAmount" Label="Kwota (PLN)" Format="N2" Required="true" Adornment="Adornment.End" AdornmentText="zł" />
+            <MudDatePicker @bind-Date="_manualDate" Label="Data" />
         </MudForm>
     </DialogContent>
     <DialogActions>
@@ -96,52 +115,53 @@
 </MudDialog>
 
 @code {
-    private List<Transaction> transactions = new();
-    private bool loading = true;
-    private bool isScanning = false;
+    // === 7. STAN KOMPONENTU (ZMIENNE) ===
+    private IEnumerable<Transaction> _transactions = new List<Transaction>();
+    private bool _isLoading = true;
+    private bool _isScanning = false;
 
-    // Zmienne do trybu ręcznego
-    private bool isManualDialogOpen = false;
-    private MudForm manualForm;
-    private string manualStoreName;
-    private decimal manualAmount;
-    private DateTime? manualDate = DateTime.Today;
-    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+    private bool _isManualDialogOpen = false;
+    private MudForm _manualForm;
+    private string _manualStoreName;
+    private decimal _manualAmount;
+    private DateTime? _manualDate = DateTime.Today;
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
 
+    // === 8. CYKL ŻYCIA ===
+    // Uruchamia się raz, gdy wchodzisz na stronę. Odpala pobranie danych z bazy.
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
     }
 
+    // Pobiera dane używając nowej metody z naszego BaseService
     private async Task LoadData()
     {
-        loading = true;
-        transactions = await Service.GetAllTransactionsAsync();
-        loading = false;
+        _isLoading = true;
+        _transactions = await Service.GetAllAsync(); // Zmiana ze starej nazwy!
+        _isLoading = false;
     }
 
-    // --- LOGIKA AI (SKANOWANIE) ---
+    // === 9. LOGIKA AI (SKANOWANIE) ===
     private async Task UploadFiles(IBrowserFile file)
     {
         if (file == null) return;
 
-        isScanning = true;
-        StateHasChanged(); // Pokaż overlay
+        _isScanning = true;
+        StateHasChanged(); // Wymusza przerysowanie ekranu, żeby pokazać kręciołek
 
         try
         {
-            // Limit 10MB na zdjęcie
             using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
 
-            // 1. AI analizuje
             var aiTransaction = await ReceiptService.AnalyzeReceiptAsync(stream, file.ContentType);
 
-            // 2. Automatyczny zapis do bazy (Fire & Forget)
-            await Service.AddTransactionAsync(aiTransaction);
+            // Zapis za pomocą nowej metody z BaseService
+            await Service.AddAsync(aiTransaction); // Zmiana ze starej nazwy!
 
             Snackbar.Add($"Zapisano paragon ze sklepu {aiTransaction.Store?.Name} na kwotę {aiTransaction.TotalAmount} PLN", Severity.Success);
 
-            await LoadData();
+            await LoadData(); // Odśwież tabelę
         }
         catch (Exception ex)
         {
@@ -149,51 +169,69 @@
         }
         finally
         {
-            isScanning = false;
-            StateHasChanged(); // Ukryj overlay
+            _isScanning = false;
+            StateHasChanged(); // Schowaj kręciołek bez względu na to, czy był błąd, czy sukces
         }
     }
 
-    // --- LOGIKA RĘCZNA (DIALOG) ---
+    // === 10. LOGIKA RĘCZNA (DIALOG) ===
     private void OpenManualDialog()
     {
-        // Reset formularza
-        manualStoreName = string.Empty;
-        manualAmount = 0;
-        manualDate = DateTime.Today;
-        isManualDialogOpen = true;
+        _manualStoreName = string.Empty;
+        _manualAmount = 0;
+        _manualDate = DateTime.Today;
+        _isManualDialogOpen = true;
     }
 
-    private void CloseManualDialog() => isManualDialogOpen = false;
+    private void CloseManualDialog() => _isManualDialogOpen = false;
 
     private async Task SaveManualTransaction()
     {
-        await manualForm.Validate();
-        if (!manualForm.IsValid) return;
+        // Sprawdza, czy wypełniłeś wymagane pola
+        await _manualForm.Validate();
+        if (!_manualForm.IsValid) return;
 
         var newTrans = new Transaction
         {
-            TransactionDate = manualDate ?? DateTime.Now,
-            TotalAmount = manualAmount,
-            // Tworzymy obiekt Store, TransactionService sam sprawdzi czy sklep istnieje
+            TransactionDate = _manualDate ?? DateTime.Now,
+            TotalAmount = _manualAmount,
             Store = new Store
             {
-                Name = manualStoreName,
-                CategoryId = 0 // Service ustawi domyślną "Inne" lub 1
+                Name = _manualStoreName,
+                CategoryId = 0
             }
         };
 
-        await Service.AddTransactionAsync(newTrans);
+        // Zapis za pomocą nowej metody z BaseService
+        await Service.AddAsync(newTrans); // Zmiana ze starej nazwy!
+
         Snackbar.Add("Dodano ręcznie!", Severity.Success);
 
-        isManualDialogOpen = false;
-        await LoadData();
+        _isManualDialogOpen = false;
+        await LoadData(); // Odśwież tabelę
     }
 
     private async Task DeleteTransaction(int id)
     {
-        await Service.DeleteTransactionAsync(id);
-        Snackbar.Add("Usunięto.", Severity.Info);
-        await LoadData();
+        // Usuwanie za pomocą nowej metody z BaseService
+        await Service.DeleteAsync(id); // Zmiana ze starej nazwy!
+
+        Snackbar.Add("Usunięto pomyślnie.", Severity.Info);
+        await LoadData(); // Odśwież tabelę
+    }
+
+    //Rozwijane listy
+    private HashSet<int> _expandedRows = new();
+
+    private void ToggleDetails(int transactionId)
+    {
+        if (_expandedRows.Contains(transactionId))
+        {
+            _expandedRows.Remove(transactionId); // Zwiń
+        }
+        else
+        {
+            _expandedRows.Add(transactionId); // Rozwiń
+        }
     }
 }
