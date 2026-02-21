@@ -14,6 +14,7 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject ExpenseControl.Services.Interfaces.IUserInitializationService UserInitService
 
 <PageTitle>Register</PageTitle>
 
@@ -83,6 +84,13 @@
         {
             identityErrors = result.Errors;
             return;
+        }
+        
+        if (result.Succeeded)
+        {
+
+            await UserInitService.SeedDefaultUserDataAsync(user.Id);
+
         }
 
         Logger.LogInformation("User created a new account with password.");

@@ -43,7 +43,7 @@ namespace ExpenseControl
 
             builder.Services.AddIdentityCore<ApplicationUser>(options =>
                 {
-                    options.SignIn.RequireConfirmedAccount = true;
+                    options.SignIn.RequireConfirmedAccount = false;
                     options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
                 })
                 .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -54,11 +54,15 @@ namespace ExpenseControl
 
 
             //Serwisy
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IStoreService, StoreService>();
             builder.Services.AddHttpClient<IAIService, GeminiService>();
             builder.Services.AddScoped<ReceiptService>();
+            builder.Services.AddScoped<ITagService, TagService>();
+            builder.Services.AddScoped<IUserInitializationService, UserInitializationService>();
 
             var app = builder.Build();
 

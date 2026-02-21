@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ExpenseControl.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260219185919_RenamedTransactionItemsToItems")]
-    partial class RenamedTransactionItemsToItems
+    [Migration("20260221120922_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -99,35 +99,15 @@ namespace ExpenseControl.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.HasIndex("UserId");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Description = "",
-                            Name = "Jedzenie"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Description = "",
-                            Name = "Rozrywka"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Description = "",
-                            Name = "Rachunki"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Description = "",
-                            Name = "Inne"
-                        });
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Store", b =>
@@ -147,37 +127,45 @@ namespace ExpenseControl.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("Name")
-                        .IsUnique();
+                    b.HasIndex("UserId");
 
                     b.ToTable("Stores");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CategoryId = 1,
-                            Description = "",
-                            Name = "Biedronka"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CategoryId = 1,
-                            Description = "",
-                            Name = "Auchan"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CategoryId = 1,
-                            Description = "",
-                            Name = "Lidl"
-                        });
+            modelBuilder.Entity("ExpenseControl.Models.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ColorHex")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Tags");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Transaction", b =>
@@ -201,11 +189,17 @@ namespace ExpenseControl.Migrations
                     b.Property<DateTime>("TransactionDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("StoreId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Transactions");
                 });
@@ -220,18 +214,24 @@ namespace ExpenseControl.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("PricePerUnit")
-                        .HasColumnType("TEXT");
-
                     b.Property<decimal>("Quantity")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("TransactionId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TransactionId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Items");
                 });
@@ -385,6 +385,32 @@ namespace ExpenseControl.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("TagTransaction", b =>
+                {
+                    b.Property<int>("TagsId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TransactionsId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TagsId", "TransactionsId");
+
+                    b.HasIndex("TransactionsId");
+
+                    b.ToTable("TagTransaction");
+                });
+
+            modelBuilder.Entity("ExpenseControl.Models.Category", b =>
+                {
+                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
+                });
+
             modelBuilder.Entity("ExpenseControl.Models.Store", b =>
                 {
                     b.HasOne("ExpenseControl.Models.Category", "Category")
@@ -393,7 +419,26 @@ namespace ExpenseControl.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
+                        .WithMany("Stores")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
+
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("ExpenseControl.Models.Tag", b =>
+                {
+                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
+                        .WithMany("Tags")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Transaction", b =>
@@ -408,6 +453,14 @@ namespace ExpenseControl.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
+                        .WithMany("Transactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
+
                     b.Navigation("Store");
                 });
 
@@ -418,6 +471,14 @@ namespace ExpenseControl.Migrations
                         .HasForeignKey("TransactionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
+                        .WithMany("Items")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationUser");
 
                     b.Navigation("Transaction");
                 });
@@ -522,6 +583,32 @@ namespace ExpenseControl.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TagTransaction", b =>
+                {
+                    b.HasOne("ExpenseControl.Models.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseControl.Models.Transaction", null)
+                        .WithMany()
+                        .HasForeignKey("TransactionsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ExpenseControl.Data.ApplicationUser", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Stores");
+
+                    b.Navigation("Tags");
+
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Category", b =>

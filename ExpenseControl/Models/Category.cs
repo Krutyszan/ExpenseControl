@@ -1,5 +1,6 @@
 ﻿using ExpenseControl.Data;
 using ExpenseControl.Models.Interfaces;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace ExpenseControl.Models
@@ -12,6 +13,7 @@ namespace ExpenseControl.Models
         public virtual ICollection<Transaction> Transactions { get; set; }
         public string Description { get; set; } = string.Empty;
         public string UserId { get ; set ; }
+        [ForeignKey("UserId")]
         public ApplicationUser ApplicationUser { get; set; }
     }
 }

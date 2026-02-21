@@ -6,7 +6,10 @@
 @inject ITransactionService Service
 @inject ReceiptService ReceiptService
 @inject ISnackbar Snackbar
-
+@inject ExpenseControl.Services.Interfaces.ICurrentUserService CurrentUserService
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    Moje ID według systemu to: <b>@(string.IsNullOrEmpty(CurrentUserService.UserId) ? "PUSTO! JESTEM DUCHEM" : CurrentUserService.UserId)</b>
+</MudAlert>
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4 pb-16">
     <MudText Typo="Typo.h4" GutterBottom="true">Moje Wydatki</MudText>
 

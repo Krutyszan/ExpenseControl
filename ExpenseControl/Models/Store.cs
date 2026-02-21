@@ -6,7 +6,6 @@ using System.Text.Json.Serialization;
 
 namespace ExpenseControl.Models
 {
-    [Index(nameof(Name), IsUnique = true)]
     public class Store : INamedEntity, IOwnedEntity
     {
         public int Id { get; set; }
@@ -21,6 +20,7 @@ namespace ExpenseControl.Models
         public virtual ICollection<Transaction> Transactions { get; set; }
 
         public string UserId { get; set; } = string.Empty;
+        [ForeignKey("UserId")]
         public ApplicationUser ApplicationUser { get; set; }
 
     }

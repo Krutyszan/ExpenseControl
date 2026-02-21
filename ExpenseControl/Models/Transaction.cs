@@ -19,6 +19,7 @@ namespace ExpenseControl.Models
         public ICollection<Tag>? Tags { get; set; } = new HashSet<Tag>();
 
         public string UserId { get; set; } = string.Empty;
+        [ForeignKey("UserId")]
         public ApplicationUser ApplicationUser { get; set; }
 
         //Pola Audytowe

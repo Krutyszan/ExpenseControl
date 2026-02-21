@@ -16,6 +16,7 @@ namespace ExpenseControl.Models
         public Transaction Transaction { get; set; }
         public int TransactionId { get; set; }
         public string UserId { get; set; } = string.Empty;
+        [ForeignKey("UserId")]
         public ApplicationUser ApplicationUser { get; set; }
     }
 }
