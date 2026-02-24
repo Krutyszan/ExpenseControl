@@ -55,14 +55,27 @@ namespace ExpenseControl.Data
         }
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // Przeszukujemy wszystko, co czeka na zapis i implementuje IOwnedEntity
-            foreach (var entry in ChangeTracker.Entries<IOwnedEntity>())
+            foreach (var entry in ChangeTracker.Entries())
             {
-                // Jeśli jest to nowy obiekt (dodawany)
                 if (entry.State == EntityState.Added)
                 {
-                    // Wymuszamy przypisanie ID aktualnego usera
-                    entry.Entity.UserId = _currentUserService.UserId;
+                    // 1. Nadawanie ID użytkownika (jeśli brakuje)
+                    if (entry.Entity is IOwnedEntity ownedEntity)
+                    {
+                        if (string.IsNullOrEmpty(ownedEntity.UserId) && !string.IsNullOrEmpty(CurrentUserId))
+                        {
+                            ownedEntity.UserId = CurrentUserId;
+                        }
+
+                        // SZPIEG 1: Sprawdzamy, jakie UserId ostatecznie dostał obiekt
+                        Console.WriteLine($"[DEBUG ZAPISU] Tabela: {entry.Entity.GetType().Name} | UserId: '{ownedEntity.UserId}'");
+                    }
+
+                    // 2. SZPIEG 2: Jeśli to paragon, sprawdzamy ID sklepu i kategorii
+                    if (entry.Entity is Transaction t)
+                    {
+                        Console.WriteLine($"[DEBUG ZAPISU] Paragon szczegóły | CategoryId: {t.CategoryId} | StoreId: {t.StoreId}");
+                    }
                 }
             }
 
