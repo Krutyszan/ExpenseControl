@@ -85,12 +85,18 @@
             identityErrors = result.Errors;
             return;
         }
-        
         if (result.Succeeded)
         {
+            try
+            {
 
-            await UserInitService.SeedDefaultUserDataAsync(user.Id);
+                await UserInitService.SeedDefaultUserDataAsync(user.Id);
 
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[BŁĄD] {ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         Logger.LogInformation("User created a new account with password.");

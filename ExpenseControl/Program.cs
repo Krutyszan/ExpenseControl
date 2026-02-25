@@ -1,6 +1,7 @@
 using ExpenseControl.Components;
 using ExpenseControl.Components.Account;
 using ExpenseControl.Data;
+using ExpenseControl.Models;
 using ExpenseControl.Services;
 using ExpenseControl.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -57,6 +58,7 @@ namespace ExpenseControl
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
             builder.Services.AddScoped<ITransactionService, TransactionService>();
+            builder.Services.AddScoped<IBaseService<Category>, CategoryService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IStoreService, StoreService>();
             builder.Services.AddHttpClient<IAIService, GeminiService>();

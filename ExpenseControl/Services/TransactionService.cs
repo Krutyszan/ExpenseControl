@@ -34,21 +34,36 @@ namespace ExpenseControl.Services
                 if (existingStore != null)
                 {
                     transaction.StoreId = existingStore.Id;
+
+                    // LUKA 1 ZAMKNIĘTA: Paragon dostaje kategorię istniejącego sklepu
+                    transaction.CategoryId = existingStore.CategoryId;
+
                     transaction.Store = null;
                 }
                 else
                 {
+                    // LUKA 2 ZAMKNIĘTA: Resetujemy wymyślone przez AI ID sklepu do zera.
+                    // Baza SQLite wygeneruje teraz poprawne, unikalne ID.
+                    transaction.Store.Id = 0;
+
                     if (transaction.Store.CategoryId == 0)
                     {
                         var defaultCat = await _context.Categories.FirstOrDefaultAsync(c => c.Name == "Inne");
                         transaction.Store.CategoryId = defaultCat?.Id ?? 1;
                     }
+
+                    // LUKA 3 ZAMKNIĘTA: Paragon dziedziczy kategorię po nowo utworzonym sklepie
+                    transaction.CategoryId = transaction.Store.CategoryId;
                 }
             }
             else if (transaction.StoreId == 0)
             {
                 var unknownStore = await GetOrCreateStoreAsync("Nieznany Sklep");
                 transaction.StoreId = unknownStore.Id;
+
+                // LUKA 4 ZAMKNIĘTA: Paragon dostaje kategorię Nieznanego Sklepu
+                transaction.CategoryId = unknownStore.CategoryId;
+
                 transaction.Store = null;
             }
 
@@ -69,6 +84,10 @@ namespace ExpenseControl.Services
                     {
                         transaction.Store = null;
                         transaction.StoreId = retryStore.Id;
+
+                        // LUKA 5 ZAMKNIĘTA: Uzupełniamy kategorię podczas ponownej próby zapisu
+                        transaction.CategoryId = retryStore.CategoryId;
+
                         await _context.SaveChangesAsync();
                     }
                     else throw;

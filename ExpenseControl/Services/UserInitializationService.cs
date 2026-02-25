@@ -14,7 +14,9 @@ namespace ExpenseControl.Services
 
         public async Task SeedDefaultUserDataAsync(string userId)
         {
+            Console.WriteLine($"[KOMITET POWITALNY] Rozpoczynam tworzenie danych dla: {userId}");
             var defaultCategories = new List<Category>
+
             {
                 new Category{ Name = "Inne", Description = "Wydatki niesklasyfikowane", UserId = userId},
                 new Category{ Name = "Jedzenie", Description = "Spożywcze i restauracje", UserId = userId},
@@ -31,7 +33,7 @@ namespace ExpenseControl.Services
 
             // Dodajemy wszystko do kontekstu
             await _context.Categories.AddRangeAsync(defaultCategories);
-            await _context.Stores.AddRangeAsync(biedronka, orlen, steam);
+            await _context.Stores.AddRangeAsync(biedronka, orlen, steam, lidl, auchan, zabka);
 
             // Zapisujemy do bazy jednym uderzeniem
             await _context.SaveChangesAsync();

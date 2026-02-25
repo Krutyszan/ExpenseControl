@@ -17,7 +17,7 @@ namespace ExpenseControl.Services.Base
 
         public virtual async Task<IEnumerable<T>> GetAllAsync()
         {
-            return await _dbSet.ToListAsync();
+            return await _dbSet.AsNoTracking().ToListAsync();
         }
         public virtual async Task AddAsync(T entity)
         {

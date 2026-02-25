@@ -40,18 +40,6 @@ namespace ExpenseControl.Data
                 .Property(t => t.TotalAmount)
                 .HasColumnType("decimal(18,2)");
 
-         /*   builder.Entity<Category>().HasData(
-                new Category { Id = 1, Name = "Jedzenie", UserId ="" },
-                new Category { Id = 2, Name = "Rozrywka", UserId = "" },
-                new Category { Id = 3, Name = "Rachunki", UserId = "" },
-                new Category { Id = 4, Name = "Inne", UserId = "" }
-                );
-            builder.Entity<Store>().HasData(
-                new Store { Id = 1, Name = "Biedronka", CategoryId = 1, UserId = "" },
-                new Store { Id = 2, Name = "Auchan", CategoryId = 1, UserId = "" },
-                new Store { Id = 3, Name = "Lidl", CategoryId = 1, UserId = "" }
-                );
-         */
         }
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
