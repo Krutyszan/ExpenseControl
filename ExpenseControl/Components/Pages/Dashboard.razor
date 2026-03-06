@@ -1,0 +1,146 @@
+﻿@page "/"
+@using ExpenseControl.Services
+@using ExpenseControl.Services.Interfaces
+@using ExpenseControl.Models
+@inject DashboardService DashboardService
+@inject ICategoryService CategoryService
+
+<PageTitle>Panel Główny</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+
+    <MudText Typo="Typo.h4">Panel Główny</MudText>
+
+    @* --- KARTA Z WYKRESEM --- *@
+    <MudCard Elevation="3" Class="pa-4 rounded-lg">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex flex-column gap-2">
+                    <MudText Typo="Typo.h6">Wydatki wg kategorii z okresu</MudText>
+                    
+                    @* Wybór okresu - trochę mniejszy i zgrabniejszy *@
+                    <MudSelect T="TimePeriod"
+                               Value="_selectedPeriod"
+                               ValueChanged="OnPeriodChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Style="width: 200px;"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="TimePeriod.LastWeek">Ostatnie 7 dni</MudSelectItem>
+                        <MudSelectItem Value="TimePeriod.LastMonth">Ostatni miesiąc</MudSelectItem>
+                        <MudSelectItem Value="TimePeriod.LastYear">Ostatni rok</MudSelectItem>
+                    </MudSelect>
+                </div>
+            </CardHeaderContent>
+        </MudCardHeader>
+
+        <MudCardContent Class="d-flex flex-column align-center justify-center">
+            @if (_data.Length > 0)
+            {
+                <div class="d-flex justify-center align-center ma-4">
+                    @* DODANO: ChartOptions do kolorów *@
+                    <MudChart ChartType="ChartType.Donut"
+                              InputData="@_data"
+                              InputLabels="@_labels"
+                              ChartOptions="@_chartOptions"
+                              Width="300px"
+                              Height="300px" />
+                </div>
+
+                @* Opcjonalnie: Lista pod wykresem z dokładnymi kwotami *@
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4">
+                    Łącznie w tym okresie: <b>@(_data.Sum().ToString("C2"))</b>
+                </MudText>
+            }
+            else
+            {
+                <div class="d-flex flex-column align-center pa-8">
+                    <MudIcon Icon="@Icons.Material.Filled.Savings" Size="Size.Large" Color="Color.Success" Class="mb-4" />
+                    <MudText Typo="Typo.h6">Brak wydatków!</MudText>
+                    <MudText Typo="Typo.body2">W wybranym okresie Twoje konto odpoczywało.</MudText>
+                </div>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private TimePeriod _selectedPeriod = TimePeriod.LastMonth;
+    private double[] _data = Array.Empty<double>();
+    private string[] _labels = Array.Empty<string>();
+
+    // Obiekt opcji wykresu, który przechowa naszą paletę kolorów
+    private ChartOptions _chartOptions = new ChartOptions();
+
+    [Inject] protected AuthenticationStateProvider AuthProvider { get; set; } = default!;
+    [Inject] protected NavigationManager NavManager { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
+        {
+            NavManager.NavigateTo("/Account/Login", forceLoad: true);
+            return;
+        }
+
+        await LoadChartDataAsync();
+    }
+
+    private async Task OnPeriodChanged(TimePeriod newPeriod)
+    {
+        _selectedPeriod = newPeriod;
+        await LoadChartDataAsync();
+    }
+
+    private async Task LoadChartDataAsync()
+    {
+        // 1. Pobieramy przetworzone dane z serwisu (Lista z ID, Kwotą i Etykietą)
+        var points = await DashboardService.GetDataByAsync(_selectedPeriod);
+
+        // 2. Zabezpieczenie: Jeśli brak danych, czyścimy wykres
+        if (points == null || !points.Any())
+        {
+            _data = Array.Empty<double>();
+            _labels = Array.Empty<string>();
+            StateHasChanged();
+            return;
+        }
+
+        // 3. Pobieramy słownik wszystkich kategorii z bazy (żeby wyciągnąć kolory)
+        var allCategories = await CategoryService.GetAllAsync();
+
+        // 4. Budujemy listę kolorów w takiej samej kolejności, jak dane na wykresie
+        var palette = new List<string>();
+
+        foreach (var point in points)
+        {
+            // Szukamy kategorii po ID - to gwarantuje poprawny kolor
+            var category = allCategories.FirstOrDefault(c => c.Id == point.CategoryId);
+
+            if (category != null && !string.IsNullOrEmpty(category.ColorHex))
+            {
+                palette.Add(category.ColorHex);
+            }
+            else
+            {
+                // Fallback: Szary kolor dla "Inne" lub usuniętych kategorii
+                palette.Add("#BDBDBD");
+            }
+        }
+
+        // 5. Konfigurujemy opcje wykresu (przypisujemy paletę)
+        _chartOptions = new ChartOptions
+        {
+            ChartPalette = palette.ToArray(),
+            LineStrokeWidth = 0 // 0 wygląda ładniej (bez ramek między kawałkami)
+        };
+
+        // 6. Rozbijamy obiekty na tablice wymagane przez MudChart
+        _data = points.Select(p => p.Value).ToArray();
+        _labels = points.Select(p => p.Label).ToArray();
+
+        // 7. Odświeżamy widok
+        StateHasChanged();
+    }
+}

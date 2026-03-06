@@ -1,5 +1,4 @@
-﻿using ExpenseControl.Models;
-using ExpenseControl.Services.Interfaces;
+﻿using ExpenseControl.Services.Interfaces;
 using System.Text;
 using System.Text.Json;
 
@@ -9,7 +8,7 @@ namespace ExpenseControl.Services
     {
         private readonly string _apiKey;
         private readonly HttpClient _httpClient;
-        
+
         public GeminiService(IConfiguration config, HttpClient httpClient)
         {
             _apiKey = config["Gemini:ApiKey"];

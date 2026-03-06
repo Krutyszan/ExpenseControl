@@ -3,9 +3,9 @@
 @using ExpenseControl.Services.Interfaces
 @using ExpenseControl.Services.Base
 @using ExpenseControl.Models.Interfaces
+@using Microsoft.AspNetCore.Authorization
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 pb-16">
-    @* --- NAGŁÓWEK STRONY I GUZIK DODAWANIA --- *@
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h4">@Title</MudText>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialog">
@@ -13,21 +13,17 @@
         </MudButton>
     </div>
 
-    @* --- UNIWERSALNA TABELA --- *@
     <MudTable Items="@_entities" Loading="@_isLoading" Hover="true" Elevation="3">
         <HeaderContent>
-            @* Jeśli strona wstrzyknęła rozwijane menu, robimy miejsce na kolumnę ze strzałką *@
             @if (ChildRowContent != null)
             {
                 <MudTh Style="width: 50px;"></MudTh>
             }
-
             @HeaderContent
             <MudTh Style="text-align:right">Akcje</MudTh>
         </HeaderContent>
 
         <RowTemplate Context="item">
-            @* Guzik rozwijania pojawia się tylko wtedy, gdy jest coś do rozwinięcia *@
             @if (ChildRowContent != null)
             {
                 <MudTd>
@@ -40,19 +36,23 @@
             @RowTemplate(item)
 
             <MudTd Style="text-align:right">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => Edit(item))" />
+                @if (AllowEdit)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => Edit(item))" />
+                }
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteAsync(item.Id))" />
             </MudTd>
         </RowTemplate>
 
-        @* SEKCJA ROZWIJANA *@
         <ChildRowContent Context="item">
             @if (ChildRowContent != null && _expandedRows.Contains(item.Id))
             {
                 <MudTr>
                     <td colspan="100" class="pa-0">
+                        @* Stylowanie karty szczegółów, ale bez narzucania przycisków *@
                         <MudCard Elevation="0" Class="ma-4" Style="background-color: #f8f9fa; border-left: 4px solid #1e88e5;">
                             <MudCardContent Class="pa-2">
+                                @* Tutaj renderuje się Twoja tabela z produktami *@
                                 @ChildRowContent(item)
                             </MudCardContent>
                         </MudCard>
@@ -60,24 +60,17 @@
                 </MudTr>
             }
         </ChildRowContent>
+
         <NoRecordsContent>
-            @if (_isLoading)
-            {
-                <div class="pa-4">
-                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" Animation="Animation.Wave" Class="mb-3" />
-                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" Animation="Animation.Wave" Class="mb-3" />
-                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" Animation="Animation.Wave" />
-                </div>
-            }
+            @if (_isLoading) { /* Skeletony... */ }
             else
             {
-                <MudText Typo="Typo.body1" Align="Align.Center" Class="pa-4">Brak danych do wyświetlenia.</MudText>
+                <MudText>Brak danych.</MudText>
             }
         </NoRecordsContent>
     </MudTable>
 </MudContainer>
 
-@* --- UNIWERSALNE OKNO DIALOGOWE (FORMULARZ) --- *@
 <MudDialog @bind-Visible="_isDialogOpen" Options="_dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">
@@ -86,9 +79,7 @@
         </MudText>
     </TitleContent>
     <DialogContent>
-        <MudForm>
-            @FormContent(_currentItem)
-        </MudForm>
+        <MudForm>@FormContent(_currentItem)</MudForm>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="CloseAddDialog">Anuluj</MudButton>
@@ -97,27 +88,31 @@
 </MudDialog>
 
 @code {
-    
+    [Inject] protected AuthenticationStateProvider AuthProvider { get; set; } = default!;
+    [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Parameter] public IBaseService<T> Service { get; set; } = default!;
-
-    //Parametryzacja tabeli
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public RenderFragment HeaderContent { get; set; }
     [Parameter] public RenderFragment<T> RowTemplate { get; set; }
     [Parameter] public RenderFragment<T> FormContent { get; set; }
     [Parameter] public RenderFragment<T>? ChildRowContent { get; set; }
+    [Parameter] public bool AllowEdit { get; set; } = true;
 
     protected IEnumerable<T> _entities = new List<T>();
     protected bool _isLoading = true;
     protected T _currentItem = new();
     protected bool _isDialogOpen = false;
     protected HashSet<int> _expandedRows = new();
-
-    // Ustawienia wyglądu okienka
     private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity is null || !authState.User.Identity.IsAuthenticated)
+        {
+            NavManager.NavigateTo("/Account/Login", forceLoad: true);
+            return;
+        }
         await LoadDataAsync();
     }
 
@@ -134,46 +129,20 @@
         await LoadDataAsync();
     }
 
-    protected void OpenAddDialog()
-    {
-        _currentItem = new T();
-        _isDialogOpen = true;
-    }
-
-    protected void CloseAddDialog()
-    {
-        _isDialogOpen = false;
-    }
-
+    protected void OpenAddDialog() { _currentItem = new T(); _isDialogOpen = true; }
+    protected void CloseAddDialog() { _isDialogOpen = false; }
     protected async Task SaveAsync()
     {
-        if (_currentItem.Id == 0)
-        {
-            await Service.AddAsync(_currentItem); // Poprawione wywołanie metody
-        }
-        else
-        {
-            await Service.UpdateAsync(_currentItem);
-        }
+        if (_currentItem.Id == 0) await Service.AddAsync(_currentItem);
+        else await Service.UpdateAsync(_currentItem);
         _isDialogOpen = false;
         await LoadDataAsync();
     }
-
-    protected void Edit(T item)
-    {
-        _currentItem = item;
-        _isDialogOpen = true;
-    }
-
+    public void Edit(T item) { _currentItem = item; _isDialogOpen = true; }
     protected void ToggleDetails(int id)
     {
-        if (_expandedRows.Contains(id))
-            _expandedRows.Remove(id);
-        else
-            _expandedRows.Add(id);
+        if (_expandedRows.Contains(id)) _expandedRows.Remove(id);
+        else _expandedRows.Add(id);
     }
-    public async Task RefreshAsync()
-    {
-        await LoadDataAsync();
-    }
+    public async Task RefreshAsync() => await LoadDataAsync();
 }

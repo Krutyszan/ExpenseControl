@@ -1,0 +1,47 @@
+﻿@using ExpenseControl.Models
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form">
+            <MudTextField @bind-Value="Model.Name" Label="Nazwa produktu" Required="true" />
+
+            <div class="d-flex gap-4">
+                <MudNumericField @bind-Value="Model.UnitPrice" Label="Cena" Format="N2" Adornment="Adornment.End" AdornmentText="zł" />
+                <MudNumericField @bind-Value="Model.Quantity" Label="Ilość" />
+            </div>
+
+            <MudSelect T="int" Label="Kategoria" @bind-Value="Model.CategoryId" AnchorOrigin="Origin.BottomCenter">
+                @foreach (var cat in Categories)
+                {
+                    <MudSelectItem Value="@cat.Id">@cat.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Anuluj</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Zapisz</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+
+    // Parametry przekazywane do dialogu
+    [Parameter] public TransactionItem Model { get; set; } = new();
+    [Parameter] public IEnumerable<Category> Categories { get; set; } = new List<Category>();
+
+    MudForm form;
+
+    void Submit()
+    {
+        form.Validate();
+        if (form.IsValid)
+        {
+            MudDialog.Close(DialogResult.Ok(Model));
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

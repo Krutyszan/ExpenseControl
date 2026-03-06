@@ -12,6 +12,9 @@ namespace ExpenseControl.Models
         public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         //Relacje
+        [ForeignKey("CategoryId")]
+        public int CategoryId { get; set; }
+        public virtual Category? Category { get; set; }
         [JsonIgnore]
         public Transaction Transaction { get; set; }
         public int TransactionId { get; set; }

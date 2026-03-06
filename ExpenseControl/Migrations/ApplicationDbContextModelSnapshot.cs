@@ -88,7 +88,15 @@ namespace ExpenseControl.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ColorHex")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Emoji")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -96,11 +104,16 @@ namespace ExpenseControl.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("ParentCategoryID")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentCategoryID");
 
                     b.HasIndex("UserId");
 
@@ -113,7 +126,7 @@ namespace ExpenseControl.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int>("DefaultCategoryId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
@@ -130,7 +143,7 @@ namespace ExpenseControl.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
+                    b.HasIndex("DefaultCategoryId");
 
                     b.HasIndex("UserId");
 
@@ -171,7 +184,7 @@ namespace ExpenseControl.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
@@ -179,9 +192,6 @@ namespace ExpenseControl.Migrations
 
                     b.Property<int>("StoreId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("TransactionDate")
                         .HasColumnType("TEXT");
@@ -207,6 +217,9 @@ namespace ExpenseControl.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -218,13 +231,15 @@ namespace ExpenseControl.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<decimal>("UnitPrice")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
 
                     b.HasIndex("TransactionId");
 
@@ -399,6 +414,10 @@ namespace ExpenseControl.Migrations
 
             modelBuilder.Entity("ExpenseControl.Models.Category", b =>
                 {
+                    b.HasOne("ExpenseControl.Models.Category", "ParentCategory")
+                        .WithMany("SubCategories")
+                        .HasForeignKey("ParentCategoryID");
+
                     b.HasOne("ExpenseControl.Data.ApplicationUser", "ApplicationUser")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -406,13 +425,15 @@ namespace ExpenseControl.Migrations
                         .IsRequired();
 
                     b.Navigation("ApplicationUser");
+
+                    b.Navigation("ParentCategory");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Store", b =>
                 {
-                    b.HasOne("ExpenseControl.Models.Category", "Category")
+                    b.HasOne("ExpenseControl.Models.Category", "DefaultCategory")
                         .WithMany()
-                        .HasForeignKey("CategoryId")
+                        .HasForeignKey("DefaultCategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -424,7 +445,7 @@ namespace ExpenseControl.Migrations
 
                     b.Navigation("ApplicationUser");
 
-                    b.Navigation("Category");
+                    b.Navigation("DefaultCategory");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.Tag", b =>
@@ -440,11 +461,9 @@ namespace ExpenseControl.Migrations
 
             modelBuilder.Entity("ExpenseControl.Models.Transaction", b =>
                 {
-                    b.HasOne("ExpenseControl.Models.Category", "Category")
+                    b.HasOne("ExpenseControl.Models.Category", null)
                         .WithMany("Transactions")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CategoryId");
 
                     b.HasOne("ExpenseControl.Models.Store", "Store")
                         .WithMany("Transactions")
@@ -460,13 +479,17 @@ namespace ExpenseControl.Migrations
 
                     b.Navigation("ApplicationUser");
 
-                    b.Navigation("Category");
-
                     b.Navigation("Store");
                 });
 
             modelBuilder.Entity("ExpenseControl.Models.TransactionItem", b =>
                 {
+                    b.HasOne("ExpenseControl.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("ExpenseControl.Models.Transaction", "Transaction")
                         .WithMany("Items")
                         .HasForeignKey("TransactionId")
@@ -480,6 +503,8 @@ namespace ExpenseControl.Migrations
                         .IsRequired();
 
                     b.Navigation("ApplicationUser");
+
+                    b.Navigation("Category");
 
                     b.Navigation("Transaction");
                 });
@@ -614,6 +639,8 @@ namespace ExpenseControl.Migrations
 
             modelBuilder.Entity("ExpenseControl.Models.Category", b =>
                 {
+                    b.Navigation("SubCategories");
+
                     b.Navigation("Transactions");
                 });
 

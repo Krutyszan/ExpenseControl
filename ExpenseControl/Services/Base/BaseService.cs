@@ -1,7 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using ExpenseControl.Data;
+﻿using ExpenseControl.Data;
 using ExpenseControl.Models.Interfaces;
 using ExpenseControl.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseControl.Services.Base
 {
@@ -26,8 +26,20 @@ namespace ExpenseControl.Services.Base
         }
         public virtual async Task UpdateAsync(T entity)
         {
-            _dbSet.Update(entity);
-            await _context.SaveChangesAsync();
+            var idProperty = entity.GetType().GetProperty("Id");
+            if (idProperty == null) throw new Exception("Entity must have an Id property");
+            var entityId = (int)idProperty.GetValue(entity);
+            var existingEntity = await _dbSet.FindAsync(entityId);
+            if (existingEntity != null)
+            {
+                _context.Entry(existingEntity).CurrentValues.SetValues(entity);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                throw new Exception($"Entity with Id {entityId} not found");
+            }
+
         }
         public virtual async Task DeleteAsync(int id)
         {
@@ -38,7 +50,7 @@ namespace ExpenseControl.Services.Base
                 await _context.SaveChangesAsync();
             }
         }
-        
+
         public virtual async Task<T?> GetByIdAsync(int id)
         {
             return await _dbSet.FirstOrDefaultAsync(e => e.Id == id);

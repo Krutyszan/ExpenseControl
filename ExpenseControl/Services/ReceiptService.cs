@@ -1,9 +1,10 @@
-﻿using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-using ExpenseControl.Data;
+﻿using ExpenseControl.Data;
 using ExpenseControl.DTOs;
 using ExpenseControl.Models;
 using ExpenseControl.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ExpenseControl.Services
 {
@@ -11,145 +12,127 @@ namespace ExpenseControl.Services
     {
         private readonly IAIService _aiService;
         private readonly ApplicationDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
-        // Wstrzykujemy IAIService zamiast HttpClient i IConfiguration!
-        public ReceiptService(IAIService aiService, ApplicationDbContext context)
+        public ReceiptService(IAIService aiService, ApplicationDbContext context, ICurrentUserService currentUserService)
         {
             _aiService = aiService;
             _context = context;
+            _currentUserService = currentUserService;
         }
 
-        public async Task<Transaction> AnalyzeReceiptAsync(Stream imageStream, string contentType)
+        public async Task<ReceiptDto> AnalyzeReceiptAsync(Stream imageStream, string contentType)
         {
-            // 1. Pobieramy kategorie i sklepy jako podpowiedź dla AI
-            var categoriesList = await _context.Categories
-                .Select(c => new { c.Id, c.Name })
-                .AsNoTracking()
-                .ToListAsync();
-            var categoriesJson = JsonSerializer.Serialize(categoriesList);
+            var userId = _currentUserService.UserId;
+            if (string.IsNullOrEmpty(userId))
+                throw new UnauthorizedAccessException("Brak zalogowanego użytkownika. Zaloguj się ponownie.");
 
-            var storesList = await _context.Stores
-                .Select(s => new { s.Id, s.Name, s.CategoryId })
-                .AsNoTracking()
-                .ToListAsync();
+            var categoriesList = await _context.Categories.AsNoTracking().Select(c => new { c.Id, c.Name }).ToListAsync();
+            var storesList = await _context.Stores.AsNoTracking().Select(s => new { s.Id, s.Name, s.DefaultCategoryId }).ToListAsync();
+
+            var categoriesJson = JsonSerializer.Serialize(categoriesList);
             var storesJson = JsonSerializer.Serialize(storesList);
 
-            // 2. Budujemy Prompt
             var promptText = $@"
-                Przeanalizuj paragon. Wyciągnij:
-                - StoreName (Odczytana nazwa sklepu)
-                - TotalAmount (Kwota łączna jako TEKST, np. ""15.50"")
-    - TransactionDate (YYYY-MM-DD)
-    
-    DOPASOWANIE SKLEPU:
-    Sprawdź, czy sklep z paragonu pasuje do któregoś z listy znanych sklepów: {storesJson}.
-    - Jeśli pasuje: zwróć jego ID w polu 'StoreId'.
-    - Jeśli NIE pasuje: zwróć null w 'StoreId'.
+                Przeanalizuj paragon i zwróć JSON.
+                DANE: Sklepy: {storesJson}, Kategorie: {categoriesJson}.
+                ZASADY: 
+                - Jeśli sklep pasuje do listy, daj jego 'StoreId'. Jeśli nie, daj null.
+                - Dopasuj 'CategoryId'. Jeśli nie wiesz, daj DefaultCategoryId sklepu lub ID kategorii 'Inne'.
+                
+                Zwróć JSON:
+                {{
+                    ""StoreName"": ""nazwa"",
+                    ""StoreId"": int?,
+                    ""TransactionDate"": ""YYYY-MM-DD"",
+                    ""Items"": [ {{ ""Name"": """", ""Price"": """", ""Quantity"": """", ""CategoryId"": int }} ]
+                }}";
 
-    DOPASOWANIE KATEGORII (Tylko jeśli StoreId jest null):
-    - CategoryId: Wybierz ID kategorii z listy: {categoriesJson}.
-    
-    - Items: Lista produktów. Każdy produkt musi mieć:
-      - Name (Nazwa produktu)
-      - Quantity (Ilość jako TEKST, np. ""1"")
-      - Price (Cena jednostkowa jako TEKST, np. ""5.99"")
+            var cleanJson = await _aiService.AnalyzeImageAsync(imageStream, contentType, promptText);
 
-    Zwróć TYLKO czysty JSON.";
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var dto = JsonSerializer.Deserialize<ReceiptDto>(cleanJson, options);
 
-            // 3. STRZAŁ DO AI (Czysto i elegancko!)
-            // Cała logika Base64, HttpClienta i wycinania klamerek ukryta jest w GeminiService
-            string cleanJson = "";
-            try
+            if (dto == null)
+                throw new InvalidOperationException("AI zwróciło puste dane lub błędny JSON.");
+
+            return dto;
+        }
+
+        public async Task<Transaction> SaveReceiptFromDtoAsync(ReceiptDto dto)
+        {
+            var userId = _currentUserService.UserId;
+            if (string.IsNullOrEmpty(userId)) throw new UnauthorizedAccessException("Utracono sesję użytkownika.");
+
+            int finalStoreId;
+            if (dto.StoreId.HasValue && dto.StoreId.Value > 0)
             {
-                cleanJson = await _aiService.AnalyzeImageAsync(imageStream, contentType, promptText);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"BŁĄD Z API AI: {ex.Message}");
-                return new Transaction { Store = new Store { Name = $"JSON: {cleanJson}" } };
-            }
-
-            // 4. Deserializacja do DTO
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                AllowTrailingCommas = true,
-                ReadCommentHandling = JsonCommentHandling.Skip
-            };
-
-            ReceiptDto dto;
-
-            try
-            {
-                dto = JsonSerializer.Deserialize<ReceiptDto>(cleanJson, options);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"BŁĄD DESERIALIZACJI: {ex.Message}");
-                Console.WriteLine($"JSON OD AI: {cleanJson}");
-                return new Transaction { Store = new Store { Name = "Błąd parsowania JSON" } };
-            }
-
-            if (dto == null) return new Transaction();
-
-            // 5. MAPOWANIE KOŃCOWE (Z DTO na Entity)
-            var result = new Transaction();
-
-            if (dto.StoreId.HasValue)
-            {
-                var matchedStore = storesList.FirstOrDefault(s => s.Id == dto.StoreId.Value);
-                result.StoreId = dto.StoreId.Value;
-
-                result.Store = new Store
-                {
-                    Id = dto.StoreId.Value,
-                    Name = matchedStore?.Name ?? dto.StoreName,
-                    CategoryId = matchedStore?.CategoryId ?? 1
-                };
+                finalStoreId = dto.StoreId.Value;
             }
             else
             {
-                result.Store = new Store
-                {
-                    Name = dto.StoreName ?? "Nieznany Sklep",
-                    CategoryId = dto.CategoryId ?? await GetDefaultCategoryId()
-                };
-            }
+                var existingStore = await _context.Stores
+                    .FirstOrDefaultAsync(s => s.Name.ToLower() == (dto.StoreName ?? "").ToLower());
 
-            result.TotalAmount = ParseDecimal(dto.TotalAmount);
-            result.TransactionDate = DateTime.TryParse(dto.TransactionDate, out var d) ? d : DateTime.Now;
-
-            if (dto.Items != null)
-            {
-                foreach (var itemDto in dto.Items)
+                if (existingStore != null)
                 {
-                    var qty = ParseDecimal(itemDto.Quantity);
-                    result.Items.Add(new TransactionItem
+                    finalStoreId = existingStore.Id;
+                }
+                else
+                {
+                    // Tworzymy nowy sklep
+                    var newStore = new Store
                     {
-                        Name = itemDto.Name ?? "Produkt",
-                        Quantity = qty == 0 ? 1 : qty,
-                        UnitPrice = ParseDecimal(itemDto.Price)
-                    });
+                        Name = string.IsNullOrWhiteSpace(dto.StoreName) ? "Nowy Sklep" : dto.StoreName,
+                        UserId = userId,
+                        DefaultCategoryId = await GetDefaultCategoryId()
+                    };
+                    _context.Stores.Add(newStore);
+                    await _context.SaveChangesAsync();
+                    finalStoreId = newStore.Id;
                 }
             }
 
-            return result;
+            // 2. Transakcja
+            var transaction = new Transaction
+            {
+                UserId = userId,
+                StoreId = finalStoreId,
+                Store = null, // NULL jest kluczowy!
+                TransactionDate = DateTime.TryParse(dto.TransactionDate, out var dt) ? dt : DateTime.Now,
+                Items = new List<TransactionItem>()
+            };
+
+            // 3. Produkty
+            var defaultCatId = await GetDefaultCategoryId();
+            foreach (var itemDto in dto.Items)
+            {
+                transaction.Items.Add(new TransactionItem
+                {
+                    Name = itemDto.Name,
+                    Quantity = ParseDecimal(itemDto.Quantity) == 0 ? 1 : ParseDecimal(itemDto.Quantity),
+                    UnitPrice = ParseDecimal(itemDto.Price),
+                    CategoryId = itemDto.CategoryId ?? defaultCatId
+                });
+            }
+
+            _context.Transactions.Add(transaction);
+            await _context.SaveChangesAsync();
+            return transaction;
         }
 
-        // --- Metody pomocnicze zostają (bo one dotyczą danych/tekstu, a nie samego modelu AI) ---
+        // Metody pomocnicze
         private async Task<int> GetDefaultCategoryId()
         {
-            var defaultCat = await _context.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.Name == "Inne");
-            return defaultCat?.Id ?? 1;
+            var cat = await _context.Categories.FirstOrDefaultAsync(c => c.Name == "Inne");
+            return cat?.Id ?? 1;
         }
 
         private decimal ParseDecimal(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return 0;
-            var clean = input.Replace("PLN", "", StringComparison.OrdinalIgnoreCase).Replace("zł", "", StringComparison.OrdinalIgnoreCase)
-                .Replace("szt", "", StringComparison.OrdinalIgnoreCase).Replace("kg", "", StringComparison.OrdinalIgnoreCase)
-                .Replace("l", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim().Replace(",", ".");
-            return decimal.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 0;
+            var clean = Regex.Replace(input, @"[^\d.,]", "").Replace(",", ".");
+            return decimal.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var res) ? res : 0;
         }
     }
 }

@@ -8,8 +8,23 @@
 <MudLayout>
     <MudAppBar Elevation="1" Color="Color.Primary">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        <MudText Typo="Typo.h6" Class="ml-3">ExpenseControl</MudText>
+        <MudText Typo="Typo.h6" Class="ml-3" Style="font-family: 'Bitcount Grid Double', sans-serif;">Licznik wydatków XD</MudText>
+
         <MudSpacer />
+
+        <AuthorizeView>
+            <Authorized>
+                <form action="/Logout" method="post" class="d-flex align-center">
+
+                    <input type="hidden" name="ReturnUrl" value="/" />
+
+                    <MudIconButton ButtonType="ButtonType.Submit"
+                                   Icon="@Icons.Material.Filled.Logout"
+                                   Color="Color.Inherit"
+                                   Title="Wyloguj się" />
+                </form>
+            </Authorized>
+        </AuthorizeView>
 
         <MudToggleIconButton @bind-Toggled="@_isDarkMode"
                              Icon="@Icons.Material.Filled.DarkMode" Color="Color.Inherit"
@@ -23,7 +38,10 @@
                ClipMode="DrawerClipMode.Always"
                Elevation="2">
         <MudNavMenu>
-            <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.ReceiptLong">
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                PANEL GŁÓWNY
+            </MudNavLink>
+            <MudNavLink Href="transactions" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.ReceiptLong">
                 TRANSAKCJE
             </MudNavLink>
 
@@ -40,10 +58,12 @@
             </MudNavLink>
 
             <MudDivider Class="my-2" />
-
+            <MudNavLink Href="settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">
+                USTAWIENIA
+            </MudNavLink>
             <MudNavLink Href="about" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Info">
                 O APLIKACJI
-            </MudNavLink>
+            </MudNavLink> 
         </MudNavMenu>
     </MudDrawer>
 

@@ -1,5 +1,4 @@
 ﻿using ExpenseControl.Models;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace ExpenseControl.Services.Interfaces
 {

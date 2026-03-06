@@ -6,6 +6,7 @@ using ExpenseControl.Services;
 using ExpenseControl.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 
@@ -61,17 +62,19 @@ namespace ExpenseControl
             builder.Services.AddScoped<IBaseService<Category>, CategoryService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IStoreService, StoreService>();
+            builder.Services.AddScoped<ITransactionItemService, TransactionItemService>();
             builder.Services.AddHttpClient<IAIService, GeminiService>();
             builder.Services.AddScoped<ReceiptService>();
             builder.Services.AddScoped<ITagService, TagService>();
             builder.Services.AddScoped<IUserInitializationService, UserInitializationService>();
+            builder.Services.AddScoped<DashboardService>();
 
             var app = builder.Build();
 
             //Automatyczne tworzenie bazy danych na start
             using (var scope = app.Services.CreateScope())
             {
-                var db= scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 db.Database.EnsureCreated();
             }
 
@@ -92,6 +95,9 @@ namespace ExpenseControl
 
             app.UseAntiforgery();
 
+            app.UseAuthentication();
+            app.UseAuthorization();
+
             app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
@@ -99,6 +105,14 @@ namespace ExpenseControl
             // Add additional endpoints required by the Identity /Account Razor components.
             app.MapAdditionalIdentityEndpoints();
 
+            app.MapPost("/Logout", async (
+    SignInManager<ApplicationUser> signInManager,
+    [FromForm] string? returnUrl) =>
+            {
+                await signInManager.SignOutAsync();
+                return Results.LocalRedirect(returnUrl ?? "/");
+            })
+.DisableAntiforgery();
             //Endpointy API
             app.MapControllers();
 

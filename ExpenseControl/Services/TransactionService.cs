@@ -1,8 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
-using ExpenseControl.Data;
+﻿using ExpenseControl.Data;
+using ExpenseControl.Extensions;
 using ExpenseControl.Models;
 using ExpenseControl.Services.Base;
 using ExpenseControl.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseControl.Services
 {
@@ -15,14 +16,21 @@ namespace ExpenseControl.Services
         {
             return await _dbSet
                 .Include(t => t.Store)
-                    .ThenInclude(s => s.Category)
                 .Include(t => t.Items)
+                    .ThenInclude(i => i.Category)
+                .Include(t => t.Tags)
                 .OrderByDescending(t => t.TransactionDate)
                 .AsNoTracking()
                 .ToListAsync();
         }
         public override async Task AddAsync(Transaction transaction)
         {
+            // Zmienna, która przechowa ostateczną decyzję co do kategorii
+            int resolvedCategoryId;
+
+            // ---------------------------------------------------------
+            // KROK 1: LOGIKA SKLEPU
+            // ---------------------------------------------------------
             if (transaction.Store != null && !string.IsNullOrWhiteSpace(transaction.Store.Name))
             {
                 var cleanName = transaction.Store.Name.Trim();
@@ -33,74 +41,89 @@ namespace ExpenseControl.Services
 
                 if (existingStore != null)
                 {
+                    // SCENARIUSZ A: Sklep istnieje
                     transaction.StoreId = existingStore.Id;
+                    transaction.Store = null; // Odpinamy, żeby nie dublować
 
-                    // LUKA 1 ZAMKNIĘTA: Paragon dostaje kategorię istniejącego sklepu
-                    transaction.CategoryId = existingStore.CategoryId;
-
-                    transaction.Store = null;
+                    // Proste przypisanie - to nie jest nullowalne, więc bierzemy jak leci
+                    // Zakładamy, że w bazie istniejące sklepy mają poprawne ID > 0
+                    resolvedCategoryId = existingStore.DefaultCategoryId;
                 }
                 else
                 {
-                    // LUKA 2 ZAMKNIĘTA: Resetujemy wymyślone przez AI ID sklepu do zera.
-                    // Baza SQLite wygeneruje teraz poprawne, unikalne ID.
-                    transaction.Store.Id = 0;
-
-                    if (transaction.Store.CategoryId == 0)
+                    // SCENARIUSZ B: Nowy sklep (AI lub ręcznie wpisany)
+                    // Sprawdzamy, czy przyszło jakieś ID (np. wybrane z listy). 
+                    // Jeśli jest 0, to znaczy, że nie wybrano nic -> dajemy "Inne".
+                    if (transaction.Store.DefaultCategoryId == 0)
                     {
-                        var defaultCat = await _context.Categories.FirstOrDefaultAsync(c => c.Name == "Inne");
-                        transaction.Store.CategoryId = defaultCat?.Id ?? 1;
+                        resolvedCategoryId = await _context.GetCategoryIdByNameAsync("Inne");
+                        transaction.Store.DefaultCategoryId = resolvedCategoryId; // Ustawiamy dla nowego sklepu
                     }
-
-                    // LUKA 3 ZAMKNIĘTA: Paragon dziedziczy kategorię po nowo utworzonym sklepie
-                    transaction.CategoryId = transaction.Store.CategoryId;
+                    else
+                    {
+                        resolvedCategoryId = transaction.Store.DefaultCategoryId;
+                    }
                 }
             }
-            else if (transaction.StoreId == 0)
+            else
             {
-                var unknownStore = await GetOrCreateStoreAsync("Nieznany Sklep");
-                transaction.StoreId = unknownStore.Id;
+                // SCENARIUSZ C: Brak nazwy sklepu (Nieznany)
+                // Jeśli nie podałeś ID (0), to uznajemy to za "Nieznany Sklep"
+                if (transaction.StoreId == 0)
+                {
+                    var unknownStore = await GetOrCreateStoreAsync("Nieznany Sklep");
+                    transaction.StoreId = unknownStore.Id;
+                    transaction.Store = null;
+                    resolvedCategoryId = unknownStore.DefaultCategoryId;
+                }
+                else
+                {
+                    // Ktoś podał samo ID sklepu (np. wybrał z listy, ale nie załadował obiektu Store)
+                    // Pobieramy kategorię tego sklepu "na szybko"
+                    var storeShort = await _context.Stores
+                        .Where(s => s.Id == transaction.StoreId)
+                        .Select(s => new { s.DefaultCategoryId })
+                        .FirstOrDefaultAsync();
 
-                // LUKA 4 ZAMKNIĘTA: Paragon dostaje kategorię Nieznanego Sklepu
-                transaction.CategoryId = unknownStore.CategoryId;
+                    resolvedCategoryId = storeShort?.DefaultCategoryId ?? await _context.GetCategoryIdByNameAsync("Inne");
+                }
+            }
 
-                transaction.Store = null;
+
+            if (transaction.Items == null || !transaction.Items.Any())
+            {
+                transaction.Items = new List<TransactionItem>
+        {
+            new TransactionItem
+            {
+                Name = transaction.Store?.Name ?? "Zakupy",
+                Quantity = 1,                
+                CategoryId = resolvedCategoryId,
+                UserId = transaction.UserId
+            }
+        };
+            }
+            else
+            {
+
+                foreach (var item in transaction.Items)
+                {
+                    if (item.CategoryId == 0)
+                    {
+                        item.CategoryId = resolvedCategoryId;
+                    }
+                }
             }
 
             _dbSet.Add(transaction);
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException ex)
-            {
-                if (transaction.Store != null)
-                {
-                    var retryStore = await _context.Stores
-                        .FirstOrDefaultAsync(s => s.Name.ToLower() == transaction.Store.Name.Trim().ToLower());
-
-                    if (retryStore != null)
-                    {
-                        transaction.Store = null;
-                        transaction.StoreId = retryStore.Id;
-
-                        // LUKA 5 ZAMKNIĘTA: Uzupełniamy kategorię podczas ponownej próby zapisu
-                        transaction.CategoryId = retryStore.CategoryId;
-
-                        await _context.SaveChangesAsync();
-                    }
-                    else throw;
-                }
-                else throw ex;
-            }
+            await _context.SaveChangesAsync();
         }
         public async Task<Store> GetOrCreateStoreAsync(string storeName)
         {
             var store = await _context.Stores.FirstOrDefaultAsync(s => s.Name.ToLower() == storeName.ToLower());
             if (store == null)
             {
-                store = new Store { Name = storeName, CategoryId = 1 };
+                store = new Store { Name = storeName, DefaultCategoryId = 1 };
                 _context.Stores.Add(store);
                 await _context.SaveChangesAsync();
             }
@@ -116,5 +139,15 @@ namespace ExpenseControl.Services
                 .ToListAsync();
 
         }
+        public async Task<IEnumerable<TransactionItem>> GetGroupedTransactionItemsAsync(int transactionId)
+        {
+            return await _context.Set<TransactionItem>()
+                .Where(item => item.TransactionId == transactionId)
+                .OrderByDescending(item => item.Quantity * item.UnitPrice)
+                .AsNoTracking()
+                .ToListAsync();
+
+        }
+
     }
 }

@@ -3,7 +3,6 @@ using ExpenseControl.Models.Interfaces;
 using ExpenseControl.Services.Interfaces;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace ExpenseControl.Data
 {
@@ -36,8 +35,8 @@ namespace ExpenseControl.Data
             builder.Entity<Store>().HasQueryFilter(x => x.UserId == CurrentUserId);
             builder.Entity<Category>().HasQueryFilter(x => x.UserId == CurrentUserId);
 
-            builder.Entity<Transaction>()
-                .Property(t => t.TotalAmount)
+            builder.Entity<TransactionItem>()
+                .Property(t => t.UnitPrice)
                 .HasColumnType("decimal(18,2)");
 
         }
@@ -62,7 +61,7 @@ namespace ExpenseControl.Data
                     // 2. SZPIEG 2: Jeśli to paragon, sprawdzamy ID sklepu i kategorii
                     if (entry.Entity is Transaction t)
                     {
-                        Console.WriteLine($"[DEBUG ZAPISU] Paragon szczegóły | CategoryId: {t.CategoryId} | StoreId: {t.StoreId}");
+                        Console.WriteLine($"[DEBUG ZAPISU] Paragon szczegóły | StoreId: {t.StoreId}");
                     }
                 }
             }

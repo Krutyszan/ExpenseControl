@@ -6,20 +6,66 @@
 <BaseCrud T="Category" Title="Moje Kategorie" Service="@CategoryService">
 
     <HeaderContent>
+        <MudTh>Ikona</MudTh> @* Nowa kolumna na wygląd *@
         <MudTh>Nazwa</MudTh>
         <MudTh>Opis</MudTh>
     </HeaderContent>
+
     <RowTemplate Context="cat">
-        <MudTd DataLabel="Nazwa"><b>@cat.Name</b></MudTd>
-        <MudTd DataLabel="Opis">@(string.IsNullOrEmpty(cat.Description) ? "—" : cat.Description)</MudTd>
+        <MudTd DataLabel="Ikona"><MudText Typo="Typo.h4">@cat.Emoji</MudText></MudTd>
+        <MudTd DataLabel="Nazwa">
+            @* Tworzymy "pigułkę" stylami CSS *@
+            <div style="@($"background-color: {cat.ColorHex}; color: {@ExpenseControl.Extensions.ColorExtensions.GetContrastColor(cat.ColorHex)}; padding: 6px 12px; border-radius: 16px; display: inline-block; font-weight: bold;")">
+                @cat.Name
+            </div>
+        </MudTd>
+        <MudTd DataLabel="Opis">
+            <MudText Typo="Typo.body2" Color="Color.Default">
+                @(string.IsNullOrEmpty(cat.Description) ? "—" : cat.Description)
+            </MudText>
+        </MudTd>
     </RowTemplate>
+
     <FormContent Context="cat">
-        <MudTextField @bind-Value="cat.Name" Label="Nazwa kategorii" Required="true" RequiredError="Nazwa jest wymagana!" AutoFocus="true" />
-        <MudTextField @bind-Value="cat.Description" Label="Opis (opcjonalnie)" Lines="2" Class="mt-3" />
+        <MudGrid>
+            <MudItem xs="9">
+                <MudTextField @bind-Value="cat.Name"
+                              Label="Nazwa kategorii"
+                              Required="true"
+                              RequiredError="Nazwa jest wymagana!"
+                              AutoFocus="true" />
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField @bind-Value="cat.Emoji"
+                              Label="Emoji"
+                              HelperText="Np. 🛒, 🍔"
+                              MaxLength="2" />
+            </MudItem>
+
+            @* Wiersz 2: Opis *@
+            <MudItem xs="12">
+                <MudTextField @bind-Value="cat.Description"
+                              Label="Opis (opcjonalnie)"
+                              Lines="2" />
+            </MudItem>
+
+            @* Wiersz 3: Kolor *@
+            <MudItem xs="12">
+                @* MudColorPicker bindujemy do stringa z hexem *@
+                <MudColorPicker Label="Kolor kategorii"
+                                @bind-Text="cat.ColorHex"
+                                Style="width: 100%;"
+                                DisableToolbar="false"
+                                DisableAlpha="true"
+                                ColorPickerView="ColorPickerView.Palette" />
+            </MudItem>
+        </MudGrid>
     </FormContent>
+
     <ChildRowContent Context="cat">
-        <MudText Typo="Typo.body2" Color="Color.Info" Class="pa-4">
-            Tutaj w przyszłości pojawi się lista subkategorii dla: <b>@cat.Name</b>.
-        </MudText>
+        <MudAlert Severity="Severity.Info" Class="ma-4" NoIcon="true">
+            Subkategorie dla <b>@cat.Name</b> - funkcja do dodania, zaimplementuję później.
+        </MudAlert>
     </ChildRowContent>
+
 </BaseCrud>

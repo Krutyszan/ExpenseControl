@@ -1,27 +1,58 @@
 ﻿@page "/transactions"
-@page "/"
 @using ExpenseControl.Models
 @using ExpenseControl.Services.Interfaces
-@inject ITransactionService TransactionService
+@using ExpenseControl.Components.Base
 
-<MudAlert Severity="Severity.Info" Class="mb-4">
-    Moje ID według systemu to: <b>@(string.IsNullOrEmpty(CurrentUserService.UserId) ? "PUSTO! JESTEM DUCHEM" : CurrentUserService.UserId) ,KOD DO WYWALENIA</b>
-</MudAlert>
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
-@* Odpalamy Twój silnik! Używamy @ref, żeby mieć do niego dostęp w kodzie C# *@
-<BaseCrud T="Transaction" Title="Moje Wydatki" Service="@TransactionService">
+    @if (_isScanning)
+    {
+        <MudPaper Elevation="1" Class="pa-4 mb-2 d-flex align-center gap-4" Style="background-color: var(--mud-palette-background-grey); border-left: 5px solid var(--mud-palette-secondary);">
+            <div style="flex-grow: 1;">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Color="Color.Secondary" Size="Size.Small" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary"><b>Sztuczna Ynteligencja analizuje paragon</b></MudText>
+                </MudStack>
+                <MudSkeleton Animation="Animation.Wave" Width="100%" Height="15px" Class="mt-1" />
+            </div>
+
+            <div style="width: 20%;" class="d-none d-md-block">
+                <MudSkeleton Animation="Animation.Wave" Width="100%" Height="30px" Class="rounded-pill" />
+            </div>
+        </MudPaper>
+    }
+
+<BaseCrud T="Transaction" Title="Moje Wydatki" Service="@Service" @ref="_crud">
 
     <HeaderContent>
         <MudTh>Data</MudTh>
         <MudTh>Sklep</MudTh>
-        <MudTh>Kategoria</MudTh>
+        <MudTh>Tagi - funkcja jeszcze nie do końca sprawna xD</MudTh>
         <MudTh Style="text-align:right">Kwota</MudTh>
     </HeaderContent>
 
     <RowTemplate Context="trans">
         <MudTd DataLabel="Data">@trans.TransactionDate.ToShortDateString()</MudTd>
         <MudTd DataLabel="Sklep"><b>@(trans.Store?.Name ?? "Nieznany")</b></MudTd>
-        <MudTd DataLabel="Kategoria">@(trans.Store?.Category?.Name ?? "Brak")</MudTd>
+        <MudTd DataLabel="Tagi">
+            @if (trans.Tags != null && trans.Tags.Any())
+            {
+                @foreach (var tag in trans.Tags)
+                {
+                    <MudChip T="string"
+                             Size="Size.Small"
+                             Variant="Variant.Filled"
+                             Style="@($"background-color: {tag.ColorHex}; color: {tag.ColorHex.GetContrastColor()}; font-weight: bold;")">
+                        @tag.Name
+                    </MudChip>
+                }
+            }
+            else
+            {
+                <MudText Typo="Typo.caption" Color="Color.Default">Brak</MudText>
+            }
+        </MudTd>
+
         <MudTd DataLabel="Kwota" Style="text-align:right"><b>@trans.TotalAmount.ToString("C2")</b></MudTd>
     </RowTemplate>
 
@@ -31,16 +62,39 @@
             <MudTable Items="@trans.Items" Context="itemContext" Hover="true" Elevation="0" Dense="true" Class="ma-4">
                 <HeaderContent>
                     <MudTh>Produkt</MudTh>
+                    <MudTh>Kategoria</MudTh>
                     <MudTh>Cena jedn.</MudTh>
                     <MudTh>Ilość</MudTh>
-                    <MudTh Style="text-align:right">Razem</MudTh>
+                    <MudTh>Razem</MudTh>
+                    <MudTh Style="text-align:right">Akcje</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Produkt">@itemContext.Name</MudTd>
+                    @* ZMIANA: Wyświetlamy kategorię per produkt *@
+                    <MudTd DataLabel="Kategoria">
+                        <MudTd DataLabel="Kategoria">
+                            <MudChip T="string"
+                                     Size="Size.Small"
+                                     Variant="Variant.Filled"
+                                     Style="@($"background-color: {itemContext.Category.ColorHex}; color: {itemContext.Category.ColorHex.GetContrastColor()}; font-weight: bold;")">
+                                @itemContext.Category.Emoji @itemContext.Category.Name
+                            </MudChip>
+                        </MudTd>
+                    </MudTd>
                     <MudTd DataLabel="Cena jedn.">@itemContext.UnitPrice.ToString("C2")</MudTd>
                     <MudTd DataLabel="Ilość">@itemContext.Quantity</MudTd>
-                    <MudTd DataLabel="Razem" Style="text-align:right; font-weight:bold">
+                    <MudTd DataLabel="Razem" Style= "font-weight:bold">
                         @((itemContext.Quantity * itemContext.UnitPrice).ToString("C2"))
+                    </MudTd>
+                    <MudTd Style="text-align: right">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="@(() => EditItemAsync(itemContext))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => DeleteItemAsync(itemContext.Id))" />
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -51,28 +105,43 @@
         }
     </ChildRowContent>
 
-    @* Magia bindowania! Skoro formularz operuje na czystym 'new Transaction()', musimy upewnić się, że 'Store' istnieje *@
     <FormContent Context="trans">
         @{
             if (trans.Store == null) trans.Store = new Store();
-            trans.Store.CategoryId = trans.CategoryId; // Synchronizujemy kategorię dla silnika zapisującego
-        }
-        <MudTextField @bind-Value="trans.Store.Name" Label="Nazwa Sklepu" Required="true" AutoFocus="true" />
-        <MudNumericField @bind-Value="trans.TotalAmount" Label="Kwota (PLN)" Format="N2" Required="true" Adornment="Adornment.End" AdornmentText="zł" />
-
-        <MudSelect T="int" @bind-Value="trans.CategoryId" Label="Kategoria" Required="true">
-            @foreach (var category in _categories)
+            if (trans.Items == null) trans.Items = new List<TransactionItem>();
+            if (!trans.Items.Any())
             {
-                <MudSelectItem Value="@category.Id">@category.Name</MudSelectItem>
+                trans.Items.Add(new TransactionItem
+                {
+                    Name = "Zakupy ręczne",
+                    Quantity = 1,
+                    UnitPrice = 0
+                });
+            }
+            var firstItem = trans.Items.First();
+            if (trans.Tags == null) trans.Tags = new List<Tag>();
+        }
+
+        <MudTextField @bind-Value="trans.Store.Name" Label="Nazwa Sklepu" Required="true" AutoFocus="true" />
+        <MudDatePicker Date="@trans.TransactionDate" DateChanged="@((DateTime? d) => trans.TransactionDate = d ?? DateTime.Now)" Label="Data" Required="true" />
+        <MudSelect T="Tag"
+                   Label="Tagi"
+                   MultiSelection="true"
+                   SelectedValues="trans.Tags"
+                   SelectedValuesChanged="@(values => trans.Tags = values.ToList())"
+                   ToStringFunc="@(tag => tag.Name)"
+                   AnchorOrigin="Origin.BottomCenter">
+
+            @foreach (var tag in _tags)
+            {
+                <MudSelectItem T="Tag" Value="@tag">@tag.Name</MudSelectItem>
             }
         </MudSelect>
 
-        @* Przekształcenie Daty, bo DatePicker zwraca nullable DateTime? *@
-        <MudDatePicker Date="@trans.TransactionDate" DateChanged="@((DateTime? d) => trans.TransactionDate = d ?? DateTime.Now)" Label="Data" Required="true" />
     </FormContent>
 </BaseCrud>
-
-@* --- PŁYWAJĄCY PRZYCISK SKANERA AI I OVERLAY --- *@
+</MudContainer>
+@* --- PŁYWAJĄCY PRZYCISK SKANERA AI --- *@
 <div style="position: fixed; bottom: 20px; right: 20px; z-index: 100;">
     <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles">
         <ActivatorContent>
@@ -81,9 +150,3 @@
     </MudFileUpload>
 </div>
 
-<MudOverlay Visible="_isScanning" DarkBackground="true" Absolute="false" Style="z-index: 9999;">
-    <MudStack AlignItems="AlignItems.Center">
-        <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
-        <MudText Typo="Typo.h5" Color="Color.Inherit">Sztuczna Inteligencja analizuje paragon...</MudText>
-    </MudStack>
-</MudOverlay>

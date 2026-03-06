@@ -1,126 +1,127 @@
 ﻿@page "/Account/Register"
 
 @using System.ComponentModel.DataAnnotations
-@using System.Text
-@using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
-@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Authorization
 @using ExpenseControl.Data
+@using ExpenseControl.Services.Interfaces
+
+@* Pozwalamy wejść niezalogowanym *@
+@attribute [AllowAnonymous]
+@* Upewniamy się, że działa interaktywnie *@
+@rendermode InteractiveServer
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IUserStore<ApplicationUser> UserStore
-@inject SignInManager<ApplicationUser> SignInManager
-@inject IEmailSender<ApplicationUser> EmailSender
-@inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
-@inject IdentityRedirectManager RedirectManager
-@inject ExpenseControl.Services.Interfaces.IUserInitializationService UserInitService
+@* Wstrzykujemy Twój serwis inicjalizujący *@
+@inject IUserInitializationService UserInitializationService
 
-<PageTitle>Register</PageTitle>
+<PageTitle>Rejestracja</PageTitle>
 
-<h1>Register</h1>
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex justify-content-center align-center mt-8">
+    <MudCard Elevation="4" Class="pa-4" Style="width: 100%;">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Align="Align.Center">Nowe konto</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <EditForm Model="@Input" OnValidSubmit="RegisterUser">
+                <DataAnnotationsValidator />
 
-<div class="row">
-    <div class="col-lg-6">
-        <StatusMessage Message="@Message" />
-        <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
-            <DataAnnotationsValidator />
-            <h2>Create a new account.</h2>
-            <hr />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Email</label>
-                <ValidationMessage For="() => Input.Email" class="text-danger" />
-            </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.Password">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
-            </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.ConfirmPassword">Confirm Password</label>
-                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
-        </EditForm>
-    </div>
-    <div class="col-lg-4 col-lg-offset-2">
-        <section>
-            <h3>Use another service to register.</h3>
-            <hr />
-            <ExternalLoginPicker />
-        </section>
-    </div>
-</div>
+                <MudTextField @bind-Value="Input.Email"
+                              Label="Email"
+                              Variant="Variant.Outlined"
+                              Class="mb-4"
+                              For="@(() => Input.Email)"
+                              InputType="InputType.Email" />
+
+                <MudTextField @bind-Value="Input.Password"
+                              Label="Hasło"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Class="mb-4"
+                              For="@(() => Input.Password)" />
+
+                <MudTextField @bind-Value="Input.ConfirmPassword"
+                              Label="Potwierdź hasło"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Class="mb-4"
+                              For="@(() => Input.ConfirmPassword)" />
+
+                @if (identityErrors.Any())
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-4">
+                        @foreach (var error in identityErrors)
+                        {
+                            <div>@error</div>
+                        }
+                    </MudAlert>
+                }
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Size="Size.Large"
+                           Disabled="@isBusy">
+                    @if (isBusy)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Inicjalizacja konta...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Zarejestruj się</MudText>
+                    }
+                </MudButton>
+            </EditForm>
+        </MudCardContent>
+        <MudCardActions Class="justify-center">
+            <MudLink Href="/Account/Login">Masz już konto? Zaloguj się</MudLink>
+        </MudCardActions>
+    </MudCard>
+</MudContainer>
 
 @code {
-    private IEnumerable<IdentityError>? identityErrors;
+    public InputModel Input { get; set; } = new();
 
-    [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = default!;
+    private IEnumerable<string> identityErrors = new List<string>();
+    private bool isBusy;
 
-    [SupplyParameterFromQuery]
-    private string? ReturnUrl { get; set; }
-
-    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
-
-    protected override void OnInitialized()
+    public async Task RegisterUser()
     {
-        Input ??= new();
-    }
+        isBusy = true;
+        identityErrors = new List<string>();
 
-    public async Task RegisterUser(EditContext editContext)
-    {
         var user = CreateUser();
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
-        var emailStore = GetEmailStore();
+        var emailStore = (IUserEmailStore<ApplicationUser>)UserStore;
         await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+
         var result = await UserManager.CreateAsync(user, Input.Password);
 
-        if (!result.Succeeded)
-        {
-            identityErrors = result.Errors;
-            return;
-        }
         if (result.Succeeded)
         {
             try
             {
-
-                await UserInitService.SeedDefaultUserDataAsync(user.Id);
-
+                await UserInitializationService.SeedDefaultUserDataAsync(user.Id);
+                NavigationManager.NavigateTo("/Account/Login");
             }
             catch (Exception ex)
             {
-                Logger.LogError($"[BŁĄD] {ex.Message} | {ex.InnerException?.Message}");
+                identityErrors = new[] { "Konto utworzone, ale błąd inicjalizacji danych: " + ex.Message };
             }
-        }
-
-        Logger.LogInformation("User created a new account with password.");
-
-        var userId = await UserManager.GetUserIdAsync(user);
-        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
-            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
-            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
-
-        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
-
-        if (UserManager.Options.SignIn.RequireConfirmedAccount)
-        {
-            RedirectManager.RedirectTo(
-                "Account/RegisterConfirmation",
-                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
         }
         else
         {
-            await SignInManager.SignInAsync(user, isPersistent: false);
-            RedirectManager.RedirectTo(ReturnUrl);
+            identityErrors = result.Errors.Select(e => e.Description);
         }
+
+        isBusy = false;
     }
 
     private ApplicationUser CreateUser()
@@ -131,36 +132,24 @@
         }
         catch
         {
-            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
-                $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor.");
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'.");
         }
     }
 
-    private IUserEmailStore<ApplicationUser> GetEmailStore()
+    public class InputModel
     {
-        if (!UserManager.SupportsUserEmail)
-        {
-            throw new NotSupportedException("The default UI requires a user store with email support.");
-        }
-        return (IUserEmailStore<ApplicationUser>)UserStore;
-    }
-
-    private sealed class InputModel
-    {
-        [Required]
-        [EmailAddress]
-        [Display(Name = "Email")]
+        [Required(ErrorMessage = "Email jest wymagany")]
+        [EmailAddress(ErrorMessage = "Błędny format email")]
         public string Email { get; set; } = "";
 
-        [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "Hasło jest wymagane")]
+        [StringLength(100, ErrorMessage = "Hasło musi mieć min. {2} i max {1} znaków.", MinimumLength = 6)]
         [DataType(DataType.Password)]
-        [Display(Name = "Password")]
         public string Password { get; set; } = "";
 
         [DataType(DataType.Password)]
         [Display(Name = "Confirm password")]
-        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        [Compare("Password", ErrorMessage = "Hasła nie pasują do siebie.")]
         public string ConfirmPassword { get; set; } = "";
     }
 }

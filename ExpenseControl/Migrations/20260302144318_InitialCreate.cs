@@ -182,8 +182,11 @@ namespace ExpenseControl.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
+                    ColorHex = table.Column<string>(type: "TEXT", nullable: false),
+                    Emoji = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
-                    UserId = table.Column<string>(type: "TEXT", nullable: false)
+                    UserId = table.Column<string>(type: "TEXT", nullable: false),
+                    ParentCategoryID = table.Column<int>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -194,6 +197,11 @@ namespace ExpenseControl.Migrations
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Categories_Categories_ParentCategoryID",
+                        column: x => x.ParentCategoryID,
+                        principalTable: "Categories",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -226,7 +234,7 @@ namespace ExpenseControl.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
-                    CategoryId = table.Column<int>(type: "INTEGER", nullable: false),
+                    DefaultCategoryId = table.Column<int>(type: "INTEGER", nullable: false),
                     UserId = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
@@ -239,8 +247,8 @@ namespace ExpenseControl.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Stores_Categories_CategoryId",
-                        column: x => x.CategoryId,
+                        name: "FK_Stores_Categories_DefaultCategoryId",
+                        column: x => x.DefaultCategoryId,
                         principalTable: "Categories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -252,7 +260,6 @@ namespace ExpenseControl.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TransactionDate = table.Column<DateTime>(type: "TEXT", nullable: false),
                     StoreId = table.Column<int>(type: "INTEGER", nullable: false),
                     UserId = table.Column<string>(type: "TEXT", nullable: false),
@@ -289,7 +296,8 @@ namespace ExpenseControl.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Quantity = table.Column<decimal>(type: "TEXT", nullable: false),
-                    UnitPrice = table.Column<decimal>(type: "TEXT", nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    CategoryId = table.Column<int>(type: "INTEGER", nullable: false),
                     TransactionId = table.Column<int>(type: "INTEGER", nullable: false),
                     UserId = table.Column<string>(type: "TEXT", nullable: false)
                 },
@@ -300,6 +308,12 @@ namespace ExpenseControl.Migrations
                         name: "FK_Items_AspNetUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Items_Categories_CategoryId",
+                        column: x => x.CategoryId,
+                        principalTable: "Categories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
@@ -377,9 +391,19 @@ namespace ExpenseControl.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Categories_ParentCategoryID",
+                table: "Categories",
+                column: "ParentCategoryID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Categories_UserId",
                 table: "Categories",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Items_CategoryId",
+                table: "Items",
+                column: "CategoryId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Items_TransactionId",
@@ -392,9 +416,9 @@ namespace ExpenseControl.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Stores_CategoryId",
+                name: "IX_Stores_DefaultCategoryId",
                 table: "Stores",
-                column: "CategoryId");
+                column: "DefaultCategoryId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Stores_UserId",

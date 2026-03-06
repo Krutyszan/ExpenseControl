@@ -1,6 +1,5 @@
 ﻿using ExpenseControl.Data;
 using ExpenseControl.Models.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -13,9 +12,9 @@ namespace ExpenseControl.Models
         public string Description { get; set; } = string.Empty;
 
         //Relacje
-        public int CategoryId { get; set; }
-        [ForeignKey("CategoryId")]
-        public virtual Category? Category { get; set; }
+        public int DefaultCategoryId { get; set; }
+        [ForeignKey("DefaultCategoryId")]
+        public virtual Category? DefaultCategory { get; set; }
         [JsonIgnore]
         public virtual ICollection<Transaction> Transactions { get; set; }
 
